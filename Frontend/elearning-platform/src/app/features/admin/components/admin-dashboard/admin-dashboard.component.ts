@@ -1,0 +1,57 @@
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+
+@Component({
+  selector: 'app-admin-dashboard',
+  standalone: true,
+  imports: [CommonModule, RouterModule],
+  template: `
+    <div class="min-h-screen bg-gray-50">
+      <div class="max-w-7xl mx-auto py-8 px-4">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-gray-600 text-sm">Total Users</p>
+            <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
+          </div>
+          <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-gray-600 text-sm">Total Courses</p>
+            <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
+          </div>
+          <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-gray-600 text-sm">Total Revenue</p>
+            <p class="text-3xl font-bold text-gray-900 mt-2">$0.00</p>
+          </div>
+          <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-gray-600 text-sm">Pending Approvals</p>
+            <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <a routerLink="/admin/users" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">User Management</h3>
+            <p class="text-gray-600 text-sm">Manage users, roles, and permissions</p>
+          </a>
+          <a routerLink="/admin/courses" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Course Management</h3>
+            <p class="text-gray-600 text-sm">Approve and moderate courses</p>
+          </a>
+          <a routerLink="/admin/payments" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Payment Management</h3>
+            <p class="text-gray-600 text-sm">View transactions and manage refunds</p>
+          </a>
+          <a routerLink="/admin/reports" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Reports</h3>
+            <p class="text-gray-600 text-sm">View detailed analytics and reports</p>
+          </a>
+        </div>
+      </div>
+    </div>
+  `
+})
+export class AdminDashboardComponent implements OnInit {
+  ngOnInit(): void {}
+}

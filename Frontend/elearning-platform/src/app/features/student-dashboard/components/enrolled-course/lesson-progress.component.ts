@@ -1,0 +1,30 @@
+import { Component, Input } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+@Component({
+  selector: 'app-lesson-progress',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div *ngIf="progress" class="bg-gray-50 p-4 rounded-lg">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-sm font-medium text-gray-700">{{ progress.lessonTitle }}</span>
+        <span class="text-xs text-gray-500">{{ progress.watchedSeconds | number }}s watched</span>
+      </div>
+      <div class="w-full bg-gray-200 rounded-full h-2">
+        <div
+          class="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+          [style.width.%]="progressPercentage"
+        ></div>
+      </div>
+    </div>
+  `
+})
+export class LessonProgressComponent {
+  @Input() progress: any;
+
+  get progressPercentage(): number {
+    if (!this.progress || !this.progress.durationSeconds) return 0;
+    return Math.min((this.progress.watchedSeconds / this.progress.durationSeconds) * 100, 100);
+  }
+}
