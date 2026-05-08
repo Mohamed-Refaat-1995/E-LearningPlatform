@@ -20,6 +20,8 @@ public interface IUnitOfWork : IAsyncDisposable
     IRepository<Payment> Payments { get; }
     IRepository<Invoice> Invoices { get; }
     IRepository<Certificate> Certificates { get; }
+    IRepository<Order> Orders { get; }
+    IRepository<OrderItem> OrderItems { get; }
 
     Task SaveChangesAsync();
     Task BeginTransactionAsync();

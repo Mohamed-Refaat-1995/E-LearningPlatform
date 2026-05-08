@@ -25,6 +25,8 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<Payment> Payments { get; }
     public IRepository<Invoice> Invoices { get; }
     public IRepository<Certificate> Certificates { get; }
+    public IRepository<Order> Orders { get; }
+    public IRepository<OrderItem> OrderItems { get; }
 
     public UnitOfWork(AppDbContext dbContext)
     {
@@ -46,6 +48,8 @@ public class UnitOfWork : IUnitOfWork
         Payments = new Repository<Payment>(_dbContext);
         Invoices = new Repository<Invoice>(_dbContext);
         Certificates = new Repository<Certificate>(_dbContext);
+        Orders = new Repository<Order>(_dbContext);
+        OrderItems = new Repository<OrderItem>(_dbContext);
     }
 
     public async Task SaveChangesAsync()
