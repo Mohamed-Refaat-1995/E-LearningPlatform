@@ -45,7 +45,7 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = null;
 
-    this.courseService.getCourseById(this.courseId)
+    this.courseService.getCourseById(Number(this.courseId))
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (course) => {
@@ -91,13 +91,12 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
     if (!this.selectedLesson || !this.enrollment) return;
 
     const progressRequest = {
-      enrollmentId: this.enrollment.id,
       lessonId: this.selectedLesson.id,
       isCompleted: true,
       watchedSeconds: this.selectedLesson.durationMinutes * 60
     };
 
-    this.enrollmentService.updateLessonProgress(progressRequest)
+    this.enrollmentService.updateLessonProgress(this.enrollment.id, progressRequest)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
