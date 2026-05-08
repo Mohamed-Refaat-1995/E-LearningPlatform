@@ -2,7 +2,7 @@ using ELearningPlatform.Core.Enums;
 
 namespace ELearningPlatform.Core.Entities;
 
-public class User : BaseEntity
+public abstract class User : BaseEntity
 {
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
@@ -21,5 +21,5 @@ public class User : BaseEntity
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
     public ICollection<StudentAnswer> StudentAnswers { get; set; } = new List<StudentAnswer>();
     public ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
-    public ICollection<Payment> Payments { get; set; } = new List<Payment>();
+    public ICollection<Order> Orders { get; set; } = new List<Order>();
 }

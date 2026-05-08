@@ -1,6 +1,6 @@
 using ELearningPlatform.Application.Services;
 using ELearningPlatform.Core.Interfaces;
-using ELearningPlatform.Infrastructure.AWS;
+using ELearningPlatform.Infrastructure.Cloudinary;
 using ELearningPlatform.Infrastructure.DbContext;
 using ELearningPlatform.Infrastructure.UnitOfWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using Amazon.S3;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -94,10 +93,9 @@ builder.Services.AddScoped<IQuizService, QuizService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
-var awsSettings = builder.Configuration.GetSection("AwsSettings");
-//builder.Services.AddAWSService<IAmazonS3>();
-builder.Services.AddScoped<IAwsS3Service, AwsS3Service>();
+builder.Services.AddScoped<ICloudinaryVideoService, CloudinaryVideoService>();
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
@@ -109,6 +107,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.MapGet("/", () => Microsoft.AspNetCore.Http.Results.Redirect("/swagger"));
 }
 
 app.UseHttpsRedirection();

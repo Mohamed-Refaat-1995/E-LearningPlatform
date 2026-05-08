@@ -29,7 +29,7 @@ public class AuthService : IAuthService
         if (existingUser != null)
             return (false, "Email already registered", null);
 
-        var user = new User
+        var user = new Student
         {
             FirstName = firstName,
             LastName = lastName,
