@@ -38,7 +38,7 @@ export class QuizResultComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = null;
 
-    this.quizService.getQuizResult(this.resultId)
+    this.quizService.getQuizResult(Number(this.resultId))
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (result) => {

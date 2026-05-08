@@ -44,7 +44,7 @@ export interface LessonContent {
   lessonId: number;
   contentType: string;
   videoUrl?: string;
-  videoS3Key?: string;
+  videoPublicId?: string;
   textContent?: string;
   resourceUrl?: string;
 }
