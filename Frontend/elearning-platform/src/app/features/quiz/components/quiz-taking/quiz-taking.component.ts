@@ -12,6 +12,7 @@ import { Quiz, SubmitQuizRequest } from '@shared/models/quiz.model';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './quiz-taking.component.html',
+  styleUrl: './quiz-taking.component.scss'
 })
 export class QuizTakingComponent implements OnInit, OnDestroy {
   quiz: Quiz | null = null;
@@ -49,7 +50,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = null;
 
-    this.quizService.getQuiz(this.quizId)
+    this.quizService.getQuiz(Number(this.quizId))
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (quiz) => {
@@ -101,6 +102,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     return this.quizForm.get('answers') as FormArray;
   }
 
+  getCurrentAnswerGroup(): FormGroup {
+    return this.getAnswers().at(this.currentQuestionIndex) as FormGroup;
+  }
+
   get currentQuestion() {
     if (!this.quiz) return null;
     return this.quiz.questions[this.currentQuestionIndex];
@@ -129,16 +134,15 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     this.error = null;
 
     const submitRequest: SubmitQuizRequest = {
-      quizId: this.quizId,
       answers: this.quizForm.get('answers')?.value || []
     };
 
-    this.quizService.submitQuiz(submitRequest)
+    this.quizService.submitQuiz(Number(this.quizId), submitRequest)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (result) => {
+        next: (response) => {
           this.submitting = false;
-          this.router.navigate(['/quiz/result', result.id]);
+          this.router.navigate(['/quiz/result', response.result.id]);
         },
         error: (error) => {
           this.error = error.error?.message || 'Failed to submit quiz. Please try again.';

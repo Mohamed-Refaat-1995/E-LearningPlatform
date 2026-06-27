@@ -14,4 +14,8 @@ public interface ICourseService
     Task<IEnumerable<Review>> GetCourseReviewsAsync(int courseId);
     Task AddReviewAsync(int courseId, int studentId, int rating, string title, string content);
     Task UpdateAverageRatingAsync(int courseId);
+
+    Task<IEnumerable<string>> GetCategoriesAsync();
+    Task<IEnumerable<Course>> GetPopularCoursesAsync(int take = 10);
+    Task<IEnumerable<Course>> GetTopRatedCoursesAsync(int take = 10);
 }

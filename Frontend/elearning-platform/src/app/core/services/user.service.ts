@@ -4,15 +4,15 @@ import { Observable } from 'rxjs';
 import { User, UserProfile, UpdateProfileRequest, ChangePasswordRequest } from '@shared/models/user.model';
 import { Course } from '@shared/models/course.model';
 import { Certificate } from '@shared/models/payment.model';
-import { environment } from '@environments/environment';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
-  private readonly API_URL = `${environment.apiUrl}/users`;
+  private get API_URL() { return `${this.config.apiUrl}/users`; }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private config: ConfigService) {}
 
   getProfile(): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${this.API_URL}/profile`);

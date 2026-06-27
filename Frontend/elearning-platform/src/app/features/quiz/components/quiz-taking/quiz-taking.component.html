@@ -55,7 +55,7 @@
       <div class="lg:col-span-3">
         <div class="bg-white rounded-lg shadow p-8">
           <form [formGroup]="quizForm">
-            <div [formGroup]="getAnswers().at(currentQuestionIndex)" class="mb-8">
+            <div [formGroup]="getCurrentAnswerGroup()" class="mb-8">
               <!-- Question Text -->
               <h2 class="text-2xl font-bold text-gray-900 mb-6">
                 {{ currentQuestion?.questionText }}

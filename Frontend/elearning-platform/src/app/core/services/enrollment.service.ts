@@ -2,16 +2,16 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Enrollment, LessonProgressRequest, StudentProgress } from '@shared/models/enrollment.model';
-import { environment } from '@environments/environment';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class EnrollmentService {
-  private readonly API_URL = `${environment.apiUrl}/enrollments`;
-  private readonly COURSES_URL = `${environment.apiUrl}/courses`;
+  private get API_URL() { return `${this.config.apiUrl}/enrollments`; }
+  private get COURSES_URL() { return `${this.config.apiUrl}/courses`; }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private config: ConfigService) {}
 
   getEnrollments(): Observable<Enrollment[]> {
     return this.http.get<Enrollment[]>(this.API_URL);

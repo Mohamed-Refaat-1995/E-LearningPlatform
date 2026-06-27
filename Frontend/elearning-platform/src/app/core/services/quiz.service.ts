@@ -2,15 +2,15 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Quiz, QuizResult, SubmitQuizRequest, QuizResultResponse } from '@shared/models/quiz.model';
-import { environment } from '@environments/environment';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class QuizService {
-  private readonly API_URL = `${environment.apiUrl}/quizzes`;
+  private get API_URL() { return `${this.config.apiUrl}/quizzes`; }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private config: ConfigService) {}
 
   getQuiz(id: number): Observable<Quiz> {
     return this.http.get<Quiz>(`${this.API_URL}/${id}`);
