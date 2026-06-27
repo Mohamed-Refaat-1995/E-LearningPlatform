@@ -2,16 +2,16 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Payment, Invoice, PaymentRequest, ProcessPaymentRequest } from '@shared/models/payment.model';
-import { environment } from '@environments/environment';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PaymentService {
-  private readonly API_URL = `${environment.apiUrl}/payments`;
-  private readonly INVOICES_URL = `${environment.apiUrl}/invoices`;
+  private get API_URL() { return `${this.config.apiUrl}/payments`; }
+  private get INVOICES_URL() { return `${this.config.apiUrl}/invoices`; }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private config: ConfigService) {}
 
   createPayment(request: PaymentRequest): Observable<Payment> {
     return this.http.post<Payment>(this.API_URL, request);

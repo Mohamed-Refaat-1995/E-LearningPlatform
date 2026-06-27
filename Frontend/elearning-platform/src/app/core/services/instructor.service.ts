@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '@environments/environment';
+import { ConfigService } from './config.service';
 import {
   Section, Lesson, LessonContent,
   SectionRequest, LessonRequest,
@@ -10,9 +10,9 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class InstructorService {
-  private readonly api = environment.apiUrl;
+  private get api() { return this.config.apiUrl; }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private config: ConfigService) {}
 
   // ── Sections ────────────────────────────────────────────────────────────────
 

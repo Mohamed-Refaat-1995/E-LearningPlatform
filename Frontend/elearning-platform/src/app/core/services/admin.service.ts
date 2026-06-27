@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '@environments/environment';
+import { ConfigService } from './config.service';
 import { User } from '@shared/models/user.model';
 import { Course } from '@shared/models/course.model';
 
@@ -9,9 +9,9 @@ import { Course } from '@shared/models/course.model';
   providedIn: 'root'
 })
 export class AdminService {
-  private readonly API_URL = environment.apiUrl;
+  private get API_URL() { return this.config.apiUrl; }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private config: ConfigService) {}
 
   // Users
   getAllUsers(): Observable<User[]> {

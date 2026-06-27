@@ -2,13 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Order, CreateOrderRequest } from '@shared/models/payment.model';
-import { environment } from '@environments/environment';
+import { ConfigService } from './config.service';
 
 @Injectable({ providedIn: 'root' })
 export class OrderService {
-  private readonly API_URL = `${environment.apiUrl}/orders`;
+  private get API_URL() { return `${this.config.apiUrl}/orders`; }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private config: ConfigService) {}
 
   createOrder(courseIds: number[]): Observable<Order> {
     return this.http.post<Order>(this.API_URL, { courseIds } as CreateOrderRequest);

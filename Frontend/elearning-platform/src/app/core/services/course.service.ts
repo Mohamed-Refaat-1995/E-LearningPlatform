@@ -3,15 +3,15 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, forkJoin, of } from 'rxjs';
 import { switchMap, map } from 'rxjs/operators';
 import { Course, Section, Lesson, Review, CreateReviewRequest } from '@shared/models/course.model';
-import { environment } from '@environments/environment';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CourseService {
-  private readonly API_URL = `${environment.apiUrl}/courses`;
+  private get API_URL() { return `${this.config.apiUrl}/courses`; }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private config: ConfigService) {}
 
   getAllCourses(): Observable<Course[]> {
     return this.http.get<Course[]>(this.API_URL);
