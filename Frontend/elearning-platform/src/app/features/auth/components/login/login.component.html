@@ -47,6 +47,7 @@
           type="checkbox"
           id="remember"
           [(ngModel)]="rememberMe"
+          [ngModelOptions]="{standalone: true}"
           class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
         />
         <label for="remember" class="ml-2 text-sm text-gray-600 cursor-pointer">
