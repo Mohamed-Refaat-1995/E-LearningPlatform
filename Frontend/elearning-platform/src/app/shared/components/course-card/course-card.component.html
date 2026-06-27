@@ -1,0 +1,26 @@
+<a [routerLink]="['/courses', course.id]" class="block w-72 shrink-0 group">
+  <div class="aspect-video w-full rounded-md overflow-hidden bg-gray-200 mb-2">
+    <img *ngIf="course.thumbnailUrl"
+         [src]="course.thumbnailUrl"
+         [alt]="course.title"
+         class="w-full h-full object-cover group-hover:opacity-90 transition" />
+    <div *ngIf="!course.thumbnailUrl"
+         class="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xl font-semibold p-4 text-center">
+      {{ course.title }}
+    </div>
+  </div>
+  <h3 class="font-bold text-gray-900 line-clamp-2 leading-tight mb-1">{{ course.title }}</h3>
+  <p class="text-xs text-gray-600 mb-1">{{ course.instructorName || 'Instructor' }}</p>
+  <div class="flex items-center gap-1 mb-1">
+    <span class="text-sm font-bold text-yellow-700">{{ course.averageRating | number:'1.1-1' }}</span>
+    <span class="text-yellow-500 text-sm">{{ stars }}</span>
+    <span class="text-xs text-gray-500">({{ course.totalReviews }})</span>
+  </div>
+  <p class="font-bold text-gray-900">${{ course.price | number:'1.2-2' }}</p>
+  <div class="flex gap-1 mt-1">
+    <span *ngIf="isBestseller"
+          class="text-xs font-semibold px-2 py-0.5 bg-yellow-100 text-yellow-900 rounded">Bestseller</span>
+    <span *ngIf="isPremium"
+          class="text-xs font-semibold px-2 py-0.5 bg-purple-100 text-purple-900 rounded">Premium</span>
+  </div>
+</a>

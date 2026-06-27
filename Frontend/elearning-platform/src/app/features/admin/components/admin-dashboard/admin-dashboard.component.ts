@@ -1,57 +1,56 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Subject, forkJoin, of } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
+import { AdminService } from '@core/services/admin.service';
 
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
   imports: [CommonModule, RouterModule],
-  template: `
-    <div class="min-h-screen bg-gray-50">
-      <div class="max-w-7xl mx-auto py-8 px-4">
-        <h1 class="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div class="bg-white rounded-lg shadow p-6">
-            <p class="text-gray-600 text-sm">Total Users</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
-          </div>
-          <div class="bg-white rounded-lg shadow p-6">
-            <p class="text-gray-600 text-sm">Total Courses</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
-          </div>
-          <div class="bg-white rounded-lg shadow p-6">
-            <p class="text-gray-600 text-sm">Total Revenue</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2">$0.00</p>
-          </div>
-          <div class="bg-white rounded-lg shadow p-6">
-            <p class="text-gray-600 text-sm">Pending Approvals</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2">0</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <a routerLink="/admin/users" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
-            <h3 class="text-lg font-bold text-gray-900 mb-2">User Management</h3>
-            <p class="text-gray-600 text-sm">Manage users, roles, and permissions</p>
-          </a>
-          <a routerLink="/admin/courses" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
-            <h3 class="text-lg font-bold text-gray-900 mb-2">Course Management</h3>
-            <p class="text-gray-600 text-sm">Approve and moderate courses</p>
-          </a>
-          <a routerLink="/admin/payments" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
-            <h3 class="text-lg font-bold text-gray-900 mb-2">Payment Management</h3>
-            <p class="text-gray-600 text-sm">View transactions and manage refunds</p>
-          </a>
-          <a routerLink="/admin/reports" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
-            <h3 class="text-lg font-bold text-gray-900 mb-2">Reports</h3>
-            <p class="text-gray-600 text-sm">View detailed analytics and reports</p>
-          </a>
-        </div>
-      </div>
-    </div>
-  `
+  templateUrl: './admin-dashboard.component.html',
+  styleUrl: './admin-dashboard.component.scss'
 })
-export class AdminDashboardComponent implements OnInit {
-  ngOnInit(): void {}
+export class AdminDashboardComponent implements OnInit, OnDestroy {
+  totalUsers = 0;
+  totalCourses = 0;
+  totalRevenue = 0;
+  pendingApprovals = 0;
+  loading = false;
+
+  private destroy$ = new Subject<void>();
+
+  constructor(private adminService: AdminService) {}
+
+  ngOnInit(): void {
+    this.loadStats();
+  }
+
+  loadStats(): void {
+    this.loading = true;
+
+    forkJoin({
+      students: this.adminService.getStudents().pipe(catchError(() => of([]))),
+      instructors: this.adminService.getInstructors().pipe(catchError(() => of([]))),
+      courses: this.adminService.getAllCourses().pipe(catchError(() => of([]))),
+      orders: this.adminService.getAllOrders().pipe(catchError(() => of([])))
+    })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: ({ students, instructors, courses, orders }) => {
+          this.totalUsers = (students?.length || 0) + (instructors?.length || 0);
+          this.totalCourses = courses?.length || 0;
+          this.pendingApprovals = (courses || []).filter((c: any) => !c.isPublished).length;
+          this.totalRevenue = (orders || []).reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
+          this.loading = false;
+        },
+        error: () => { this.loading = false; }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 }

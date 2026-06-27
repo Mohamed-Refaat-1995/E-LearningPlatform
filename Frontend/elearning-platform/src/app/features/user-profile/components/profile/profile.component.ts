@@ -12,6 +12,7 @@ import { AuthService } from '@core/services/auth.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './profile.component.html',
+  styleUrl: './profile.component.scss'
 })
 export class ProfileComponent implements OnInit, OnDestroy {
   profileForm!: FormGroup;

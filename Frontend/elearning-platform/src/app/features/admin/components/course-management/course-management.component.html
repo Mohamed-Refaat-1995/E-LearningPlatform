@@ -1,0 +1,44 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-7xl mx-auto py-8 px-4">
+    <a routerLink="/admin" class="text-indigo-600 hover:text-indigo-700 font-medium mb-4 inline-block">← Back</a>
+    <h1 class="text-3xl font-bold text-gray-900 mt-4">Course Management</h1>
+    <p class="text-gray-600 mt-2">Approve and moderate course content</p>
+
+    <div class="bg-white rounded-lg shadow p-6 mt-8">
+      <p *ngIf="loading" class="text-gray-500">Loading courses...</p>
+      <p *ngIf="error" class="text-red-600">{{ error }}</p>
+
+      <div *ngIf="!loading && courses.length === 0" class="text-gray-500">No courses available.</div>
+
+      <table *ngIf="!loading && courses.length > 0" class="w-full text-left">
+        <thead>
+          <tr class="border-b border-gray-200">
+            <th class="py-2">Title</th>
+            <th class="py-2">Category</th>
+            <th class="py-2">Level</th>
+            <th class="py-2">Price</th>
+            <th class="py-2">Status</th>
+            <th class="py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let course of courses" class="border-b border-gray-100">
+            <td class="py-2">{{ course.title }}</td>
+            <td class="py-2">{{ course.category }}</td>
+            <td class="py-2">{{ course.level }}</td>
+            <td class="py-2">{{ course.price | currency }}</td>
+            <td class="py-2">
+              <span [class]="course.isPublished ? 'text-green-600' : 'text-yellow-600'">
+                {{ course.isPublished ? 'Published' : 'Pending' }}
+              </span>
+            </td>
+            <td class="py-2">
+              <a [routerLink]="['/courses', course.id]" class="text-indigo-600 hover:underline mr-3">View</a>
+              <button (click)="deleteCourse(course)" class="text-red-600 hover:underline">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

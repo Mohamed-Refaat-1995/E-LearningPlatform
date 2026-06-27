@@ -23,10 +23,39 @@ export interface Invoice {
   pdfUrl?: string;
 }
 
-export interface PaymentRequest {
+// Step 1 — create order
+export interface CreateOrderRequest {
+  courseIds: number[];
+}
+
+export interface Order {
+  id: number;
+  userId: number;
+  status: string;
+  totalAmount: number;
+  currency: string;
+  placedAt: Date;
+  items: OrderItem[];
+}
+
+export interface OrderItem {
+  id: number;
+  orderId: number;
   courseId: number;
+  price: number;
+}
+
+// Step 2 — create payment against an order
+export interface PaymentRequest {
+  orderId: number;
   amount: number;
-  stripePaymentMethodId?: string;
+  paymentMethod: string;
+}
+
+// Step 3 — process / confirm payment (this triggers enrollment on backend)
+export interface ProcessPaymentRequest {
+  transactionNo?: string;
+  stripePaymentIntentId?: string;
 }
 
 export interface Certificate {

@@ -120,6 +120,37 @@ public class CourseService : ICourseService
         await UpdateAverageRatingAsync(courseId);
     }
 
+    public async Task<IEnumerable<string>> GetCategoriesAsync()
+    {
+        var courses = await _unitOfWork.Courses.FindAsync(c => !c.IsDeleted && c.IsPublished);
+        return courses
+            .Select(c => c.Category)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct()
+            .OrderBy(c => c)
+            .ToList();
+    }
+
+    public async Task<IEnumerable<Course>> GetPopularCoursesAsync(int take = 10)
+    {
+        var courses = await _unitOfWork.Courses.FindAsync(c => !c.IsDeleted && c.IsPublished);
+        return courses
+            .OrderByDescending(c => c.TotalStudents)
+            .ThenByDescending(c => c.AverageRating)
+            .Take(take)
+            .ToList();
+    }
+
+    public async Task<IEnumerable<Course>> GetTopRatedCoursesAsync(int take = 10)
+    {
+        var courses = await _unitOfWork.Courses.FindAsync(c => !c.IsDeleted && c.IsPublished);
+        return courses
+            .OrderByDescending(c => c.AverageRating)
+            .ThenByDescending(c => c.TotalReviews)
+            .Take(take)
+            .ToList();
+    }
+
     public async Task UpdateAverageRatingAsync(int courseId)
     {
         var course = await _unitOfWork.Courses.GetByIdAsync(courseId);

@@ -1,0 +1,117 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <a routerLink="/instructor/earnings" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">← Earnings</a>
+      <h1 class="text-3xl font-bold text-gray-900 mt-2">
+        Enrolled Students
+        @if (course) { <span class="text-indigo-600">— {{ course.title }}</span> }
+      </h1>
+      <p class="text-gray-500 mt-1">{{ students.length }} student{{ students.length !== 1 ? 's' : '' }} enrolled</p>
+    </div>
+
+    @if (loading) {
+      <div class="text-center py-16 text-gray-500">Loading students...</div>
+    }
+
+    @if (!loading) {
+      <!-- Summary Stats -->
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+          <p class="text-sm text-gray-500">Total Enrolled</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1">{{ students.length }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+          <p class="text-sm text-gray-500">Completed</p>
+          <p class="text-3xl font-bold text-green-600 mt-1">{{ completedCount }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+          <p class="text-sm text-gray-500">Avg. Progress</p>
+          <p class="text-3xl font-bold text-indigo-600 mt-1">{{ avgCompletion }}%</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+          <p class="text-sm text-gray-500">Revenue Generated</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1">{{ totalRevenue | currency }}</p>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="mb-4">
+        <input type="text" [(ngModel)]="searchTerm" placeholder="Search by name or email..."
+          class="w-full max-w-sm border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+      </div>
+
+      <!-- Students Table -->
+      @if (students.length === 0) {
+        <div class="text-center py-16 bg-white rounded-xl border border-gray-200">
+          <p class="text-5xl mb-3">🎓</p>
+          <p class="text-lg font-semibold text-gray-700">No students enrolled yet</p>
+          <p class="text-gray-400 text-sm mt-1">Share your course link to attract learners.</p>
+        </div>
+      }
+
+      @if (students.length > 0) {
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-5 py-3 text-left font-semibold text-gray-600">#</th>
+                <th class="px-5 py-3 text-left font-semibold text-gray-600">Student</th>
+                <th class="px-5 py-3 text-left font-semibold text-gray-600">Enrolled</th>
+                <th class="px-5 py-3 text-left font-semibold text-gray-600">Progress</th>
+                <th class="px-5 py-3 text-left font-semibold text-gray-600">Paid</th>
+                <th class="px-5 py-3 text-left font-semibold text-gray-600">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              @for (student of filteredStudents; track student.id; let i = $index) {
+                <tr class="hover:bg-gray-50 transition">
+                  <td class="px-5 py-4 text-gray-400 font-medium">{{ i + 1 }}</td>
+                  <td class="px-5 py-4">
+                    <div class="flex items-center gap-3">
+                      <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm flex-shrink-0">
+                        {{ (student.studentName || 'S')[0].toUpperCase() }}
+                      </div>
+                      <div>
+                        <p class="font-medium text-gray-900">{{ student.studentName || 'Student #' + student.studentId }}</p>
+                        @if (student.studentEmail) {
+                          <p class="text-xs text-gray-400">{{ student.studentEmail }}</p>
+                        }
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-4 text-gray-500 text-xs">{{ student.enrolledAt | date:'MMM d, y' }}</td>
+                  <td class="px-5 py-4 w-40">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 bg-gray-100 rounded-full h-2">
+                        <div class="h-2 rounded-full transition-all"
+                          [class]="student.completionPercentage >= 100 ? 'bg-green-500' : 'bg-indigo-500'"
+                          [style.width.%]="student.completionPercentage">
+                        </div>
+                      </div>
+                      <span class="text-xs font-medium text-gray-600 w-9">{{ student.completionPercentage | number:'1.0-0' }}%</span>
+                    </div>
+                  </td>
+                  <td class="px-5 py-4 font-medium text-gray-700">{{ student.pricePaid | currency }}</td>
+                  <td class="px-5 py-4">
+                    @if (student.completionPercentage >= 100) {
+                      <span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Completed</span>
+                    } @else if (student.completionPercentage > 0) {
+                      <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">In Progress</span>
+                    } @else {
+                      <span class="px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-medium">Not Started</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          @if (filteredStudents.length === 0 && searchTerm) {
+            <div class="text-center py-8 text-gray-400">No students match "{{ searchTerm }}"</div>
+          }
+        </div>
+      }
+    }
+  </div>
+</div>

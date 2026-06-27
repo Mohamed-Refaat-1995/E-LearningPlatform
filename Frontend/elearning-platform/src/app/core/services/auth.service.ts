@@ -78,6 +78,10 @@ export class AuthService {
     return this.currentUser$.asObservable();
   }
 
+  getCurrentUserSnapshot(): User | null {
+    return this.currentUser$.value;
+  }
+
   isAuthenticated(): Observable<boolean> {
     return this._isAuthenticated$.asObservable();
   }

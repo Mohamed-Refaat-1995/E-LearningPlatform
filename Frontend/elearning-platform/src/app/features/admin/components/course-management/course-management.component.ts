@@ -1,23 +1,62 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { AdminService } from '@core/services/admin.service';
+import { Course } from '@shared/models/course.model';
 
 @Component({
   selector: 'app-course-management',
   standalone: true,
   imports: [CommonModule, RouterModule],
-  template: `
-    <div class="min-h-screen bg-gray-50">
-      <div class="max-w-7xl mx-auto py-8 px-4">
-        <a routerLink="/admin" class="text-indigo-600 hover:text-indigo-700 font-medium mb-4 inline-block">← Back</a>
-        <h1 class="text-3xl font-bold text-gray-900 mt-4">Course Management</h1>
-        <p class="text-gray-600 mt-2">Approve and moderate course content</p>
-
-        <div class="bg-white rounded-lg shadow p-8 mt-8">
-          <p class="text-gray-600">Course management interface coming soon...</p>
-        </div>
-      </div>
-    </div>
-  `
+  templateUrl: './course-management.component.html',
+  styleUrl: './course-management.component.scss'
 })
-export class CourseManagementComponent {}
+export class CourseManagementComponent implements OnInit, OnDestroy {
+  courses: Course[] = [];
+  loading = false;
+  error: string | null = null;
+
+  private destroy$ = new Subject<void>();
+
+  constructor(private adminService: AdminService) {}
+
+  ngOnInit(): void {
+    this.loadCourses();
+  }
+
+  loadCourses(): void {
+    this.loading = true;
+    this.error = null;
+    this.adminService.getAllCourses()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: courses => {
+          this.courses = courses;
+          this.loading = false;
+        },
+        error: () => {
+          this.error = 'Failed to load courses.';
+          this.loading = false;
+        }
+      });
+  }
+
+  deleteCourse(course: Course): void {
+    if (!confirm(`Delete course "${course.title}"?`)) return;
+    this.adminService.deleteCourse(course.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.courses = this.courses.filter(c => c.id !== course.id);
+        },
+        error: () => { this.error = 'Failed to delete course.'; }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+}

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ELearningPlatform.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/payments")]
 [Authorize]
 public class PaymentController : ControllerBase
 {
@@ -30,12 +30,18 @@ public class PaymentController : ControllerBase
         return int.TryParse(User.FindFirst("userId")?.Value, out userId);
     }
 
-    [HttpGet("me")]
+    [HttpGet]
     public async Task<IActionResult> GetMyPayments()
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var payments = await _paymentService.GetUserPaymentsAsync(userId);
         return Ok(payments);
+    }
+
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMyPaymentsAlias()
+    {
+        return await GetMyPayments();
     }
 
     [HttpGet("{id}")]
@@ -71,7 +77,7 @@ public class PaymentController : ControllerBase
         if (order == null) return NotFound(new { message = "Order not found" });
         if (order.UserId != userId) return Forbid();
 
-        var ok = await _paymentService.ProcessPaymentAsync(id, request.TransactionNo);
+        var ok = await _paymentService.ProcessPaymentAsync(id, request.GetTransactionNo());
         if (!ok) return BadRequest(new { message = "Payment processing failed" });
 
         foreach (var item in order.Items)

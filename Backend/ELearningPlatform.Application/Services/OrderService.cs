@@ -46,9 +46,18 @@ public class OrderService : IOrderService
 
     public async Task<Order?> GetOrderByIdAsync(int orderId)
     {
-        return await _unitOfWork.Orders.FirstOrDefaultAsync(o =>
+        var order = await _unitOfWork.Orders.FirstOrDefaultAsync(o =>
             o.Id == orderId && !o.IsDeleted
         );
+
+        if (order != null)
+        {
+            // Generic repository has no Include(), so load Items separately
+            var items = await _unitOfWork.OrderItems.FindAsync(i => i.OrderId == orderId);
+            order.Items = items.ToList();
+        }
+
+        return order;
     }
 
     public async Task<IEnumerable<Order>> GetUserOrdersAsync(int userId)
