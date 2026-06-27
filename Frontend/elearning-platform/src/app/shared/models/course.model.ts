@@ -26,6 +26,7 @@ export interface Section {
   courseId: number;
   displayOrder: number;
   lessons?: Lesson[];
+  isExpanded?: boolean; // UI state only
 }
 
 export interface Lesson {
@@ -37,14 +38,15 @@ export interface Lesson {
   durationMinutes: number;
   isPreview: boolean;
   contents?: LessonContent[];
+  isExpanded?: boolean; // UI state only
 }
 
 export interface LessonContent {
   id: number;
   lessonId: number;
-  contentType: string;
+  contentType: string; // 'Video' | 'Text' | 'Resource'
   videoUrl?: string;
-  videoS3Key?: string;
+  videoPublicId?: string;
   textContent?: string;
   resourceUrl?: string;
 }
@@ -56,6 +58,18 @@ export interface CreateCourseRequest {
   level: string;
   price: number;
   thumbnailUrl?: string;
+}
+
+export interface SectionRequest {
+  title: string;
+  description?: string;
+}
+
+export interface LessonRequest {
+  title: string;
+  description?: string;
+  durationMinutes: number;
+  isPreview: boolean;
 }
 
 export interface Review {
@@ -74,4 +88,58 @@ export interface CreateReviewRequest {
   rating: number;
   title: string;
   content: string;
+}
+
+export interface Coupon {
+  id: number;
+  code: string;
+  discountType: 'Percentage' | 'Fixed';
+  discountValue: number;
+  maxDiscountAmount?: number;
+  maxUses?: number;
+  usedCount: number;
+  expiryDate?: Date;
+  isActive: boolean;
+  instructorId: number;
+  courseId?: number;
+  createdAt: Date;
+}
+
+export interface CreateCouponRequest {
+  code: string;
+  discountType: 'Percentage' | 'Fixed';
+  discountValue: number;
+  maxDiscountAmount?: number;
+  maxUses?: number;
+  expiryDate?: string;
+  courseId?: number;
+}
+
+export interface InstructorEarnings {
+  instructorId: number;
+  totalRevenue: number;
+  totalStudents: number;
+  totalCourses: number;
+  courses: CourseEarning[];
+}
+
+export interface CourseEarning {
+  courseId: number;
+  courseTitle: string;
+  totalStudents: number;
+  pricePerSeat: number;
+  totalRevenue: number;
+  enrollmentCount: number;
+}
+
+export interface EnrolledStudent {
+  id: number;
+  studentId: number;
+  studentName?: string;
+  studentEmail?: string;
+  courseId: number;
+  pricePaid: number;
+  enrolledAt: Date;
+  completionPercentage: number;
+  completedAt?: Date;
 }

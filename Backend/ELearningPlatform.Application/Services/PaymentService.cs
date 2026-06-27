@@ -12,16 +12,14 @@ public class PaymentService : IPaymentService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Payment> CreatePaymentAsync(int userId, int courseId, decimal amount)
+    public async Task<Payment> CreatePaymentAsync(int orderId, decimal amount, string paymentMethod = "Stripe")
     {
         var payment = new Payment
         {
-            UserId = userId,
-            CourseId = courseId,
+            OrderId = orderId,
             Amount = amount,
-            Status = "Pending",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            PaymentMethod = paymentMethod,
+            Status = "Pending"
         };
 
         await _unitOfWork.Payments.AddAsync(payment);
@@ -29,19 +27,27 @@ public class PaymentService : IPaymentService
         return payment;
     }
 
-    public async Task<bool> ProcessPaymentAsync(int paymentId, string stripePaymentIntentId)
+    public async Task<bool> ProcessPaymentAsync(int paymentId, string transactionNo)
     {
         var payment = await _unitOfWork.Payments.GetByIdAsync(paymentId);
         if (payment == null) return false;
 
-        payment.StripePaymentIntentId = stripePaymentIntentId;
+        payment.TransactionNo = transactionNo;
         payment.Status = "Completed";
         payment.PaidAt = DateTime.UtcNow;
         payment.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Payments.Update(payment);
-        await _unitOfWork.SaveChangesAsync();
 
+        var order = await _unitOfWork.Orders.GetByIdAsync(payment.OrderId);
+        if (order != null)
+        {
+            order.Status = "Paid";
+            order.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Orders.Update(order);
+        }
+
+        await _unitOfWork.SaveChangesAsync();
         return true;
     }
 
@@ -58,9 +64,7 @@ public class PaymentService : IPaymentService
             Amount = payment.Amount,
             Currency = payment.Currency,
             Status = "Generated",
-            IssuedAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            IssuedAt = DateTime.UtcNow
         };
 
         await _unitOfWork.Invoices.AddAsync(invoice);
@@ -71,8 +75,11 @@ public class PaymentService : IPaymentService
 
     public async Task<IEnumerable<Payment>> GetUserPaymentsAsync(int userId)
     {
+        var orders = await _unitOfWork.Orders.FindAsync(o => o.UserId == userId && !o.IsDeleted);
+        var orderIds = orders.Select(o => o.Id).ToHashSet();
+
         return await _unitOfWork.Payments.FindAsync(p =>
-            p.UserId == userId && !p.IsDeleted
+            orderIds.Contains(p.OrderId) && !p.IsDeleted
         );
     }
 
@@ -90,10 +97,17 @@ public class PaymentService : IPaymentService
 
         payment.Status = "Refunded";
         payment.UpdatedAt = DateTime.UtcNow;
-
         _unitOfWork.Payments.Update(payment);
-        await _unitOfWork.SaveChangesAsync();
 
+        var order = await _unitOfWork.Orders.GetByIdAsync(payment.OrderId);
+        if (order != null)
+        {
+            order.Status = "Refunded";
+            order.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Orders.Update(order);
+        }
+
+        await _unitOfWork.SaveChangesAsync();
         return true;
     }
 }

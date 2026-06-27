@@ -10,6 +10,7 @@ import { QuizService } from '@core/services/quiz.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './quiz-result.component.html',
+  styleUrl: './quiz-result.component.scss'
 })
 export class QuizResultComponent implements OnInit, OnDestroy {
   quizResult: any = null;
@@ -38,7 +39,7 @@ export class QuizResultComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = null;
 
-    this.quizService.getQuizResult(this.resultId)
+    this.quizService.getQuizResult(Number(this.resultId))
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (result) => {

@@ -8,7 +8,8 @@ import { AuthService } from '@core/services/auth.service';
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule],
-  templateUrl: './login.component.html'
+  templateUrl: './login.component.html',
+  styleUrl: './login.component.scss'
 })
 export class LoginComponent implements OnInit {
   loginForm!: FormGroup;
@@ -39,8 +40,17 @@ export class LoginComponent implements OnInit {
     this.authService.login(this.loginForm.value).subscribe({
       next: (response) => {
         this.loading = false;
-        const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
-        this.router.navigate([returnUrl]);
+        const returnUrl = this.route.snapshot.queryParams['returnUrl'];
+        if (returnUrl) {
+          this.router.navigate([returnUrl]);
+        } else {
+          const roleRoutes: Record<string, string> = {
+            Instructor: '/instructor',
+            Admin: '/admin',
+            Student: '/dashboard'
+          };
+          this.router.navigate([roleRoutes[response.role] ?? '/dashboard']);
+        }
       },
       error: (error) => {
         this.loading = false;

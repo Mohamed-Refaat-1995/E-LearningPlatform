@@ -1,0 +1,46 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-7xl mx-auto py-8 px-4">
+    <a routerLink="/admin" class="text-indigo-600 hover:text-indigo-700 font-medium mb-4 inline-block">← Back</a>
+    <h1 class="text-3xl font-bold text-gray-900 mt-4">Reports</h1>
+    <p class="text-gray-600 mt-2">View detailed analytics and reports</p>
+
+    <p *ngIf="loading" class="text-gray-500 mt-4">Loading reports...</p>
+    <p *ngIf="error" class="text-red-600 mt-4">{{ error }}</p>
+
+    <div *ngIf="!loading" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">User Statistics</h3>
+        <div class="space-y-2">
+          <p><span class="text-gray-600">Total Students:</span> <strong>{{ totalStudents }}</strong></p>
+          <p><span class="text-gray-600">Total Instructors:</span> <strong>{{ totalInstructors }}</strong></p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Revenue Statistics</h3>
+        <div class="space-y-2">
+          <p><span class="text-gray-600">Total Revenue:</span> <strong>{{ totalRevenue | currency }}</strong></p>
+          <p><span class="text-gray-600">Paid Orders:</span> <strong>{{ paidOrders }}</strong></p>
+          <p><span class="text-gray-600">Total Orders:</span> <strong>{{ totalOrders }}</strong></p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Course Performance</h3>
+        <div class="space-y-2">
+          <p><span class="text-gray-600">Total Courses:</span> <strong>{{ totalCourses }}</strong></p>
+          <p><span class="text-gray-600">Published Courses:</span> <strong>{{ publishedCourses }}</strong></p>
+          <p><span class="text-gray-600">Pending Approval:</span> <strong>{{ totalCourses - publishedCourses }}</strong></p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Conversion Rate</h3>
+        <div class="space-y-2">
+          <p *ngIf="totalOrders > 0">
+            <span class="text-gray-600">Paid Order Rate:</span>
+            <strong>{{ (paidOrders / totalOrders) * 100 | number:'1.1-1' }}%</strong>
+          </p>
+          <p *ngIf="totalOrders === 0" class="text-gray-500">No orders yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

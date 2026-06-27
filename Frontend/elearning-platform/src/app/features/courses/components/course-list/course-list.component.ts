@@ -13,6 +13,7 @@ import { AuthService } from '@core/services/auth.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './course-list.component.html',
+  styleUrl: './course-list.component.scss'
 })
 export class CourseListComponent implements OnInit, OnDestroy {
   courses: Course[] = [];

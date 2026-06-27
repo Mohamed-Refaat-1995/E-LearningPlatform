@@ -1,0 +1,119 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <a routerLink="/instructor" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">← Dashboard</a>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2">Earnings & Revenue</h1>
+        <p class="text-gray-500 mt-1">Your financial performance across all courses</p>
+      </div>
+    </div>
+
+    @if (loading) {
+      <div class="text-center py-16 text-gray-500">Loading earnings data...</div>
+    }
+
+    @if (!loading && earnings) {
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <p class="text-sm font-medium text-gray-500">Total Revenue</p>
+          <p class="text-3xl font-bold text-gray-900 mt-2">{{ earnings.totalRevenue | currency }}</p>
+          <p class="text-xs text-gray-400 mt-1">from paid enrollments</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <p class="text-sm font-medium text-gray-500">Total Students</p>
+          <p class="text-3xl font-bold text-indigo-600 mt-2">{{ earnings.totalStudents }}</p>
+          <p class="text-xs text-gray-400 mt-1">enrolled across all courses</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <p class="text-sm font-medium text-gray-500">Total Courses</p>
+          <p class="text-3xl font-bold text-gray-900 mt-2">{{ earnings.totalCourses }}</p>
+          <p class="text-xs text-gray-400 mt-1">created by you</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <p class="text-sm font-medium text-gray-500">Avg. Revenue / Course</p>
+          <p class="text-3xl font-bold text-green-600 mt-2">
+            {{ earnings.totalCourses > 0 ? (earnings.totalRevenue / earnings.totalCourses | currency) : '$0.00' }}
+          </p>
+          <p class="text-xs text-gray-400 mt-1">per course average</p>
+        </div>
+      </div>
+
+      <!-- Per-Course Breakdown -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="text-lg font-bold text-gray-900">Revenue by Course</h2>
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-600">Sort by:</label>
+            <select [(ngModel)]="sortBy" class="text-sm border border-gray-300 rounded-lg px-2 py-1">
+              <option value="revenue">Revenue</option>
+              <option value="students">Students</option>
+            </select>
+          </div>
+        </div>
+
+        @if (sortedCourses.length === 0) {
+          <div class="text-center py-12 text-gray-400">
+            <p class="text-4xl mb-3">📊</p>
+            <p class="font-medium">No revenue data yet</p>
+            <p class="text-sm mt-1">Revenue will appear here once students enroll in your courses.</p>
+          </div>
+        }
+
+        @if (sortedCourses.length > 0) {
+          <div class="divide-y divide-gray-100">
+            @for (course of sortedCourses; track course.courseId; let i = $index) {
+              <div class="px-6 py-5 hover:bg-gray-50 transition">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      {{ i + 1 }}
+                    </span>
+                    <div>
+                      <p class="font-semibold text-gray-900">{{ course.courseTitle }}</p>
+                      <p class="text-xs text-gray-500">{{ course.pricePerSeat | currency }} per seat · {{ course.enrollmentCount }} paid enrollment{{ course.enrollmentCount !== 1 ? 's' : '' }}</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-lg font-bold text-gray-900">{{ course.totalRevenue | currency }}</p>
+                    <p class="text-xs text-gray-500">{{ course.enrollmentCount }} student{{ course.enrollmentCount !== 1 ? 's' : '' }}</p>
+                  </div>
+                </div>
+
+                <!-- Revenue Bar -->
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                  <div class="bg-indigo-500 h-2 rounded-full transition-all duration-500"
+                    [style.width.%]="revenuePercent(course)">
+                  </div>
+                </div>
+
+                <div class="flex justify-end mt-1">
+                  <a [routerLink]="['/instructor/students', course.courseId]"
+                    class="text-xs text-indigo-600 hover:underline">View students →</a>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Total Footer -->
+          <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <span class="font-semibold text-gray-700">Total</span>
+            <span class="text-xl font-bold text-gray-900">{{ earnings.totalRevenue | currency }}</span>
+          </div>
+        }
+      </div>
+
+      <!-- Note -->
+      <p class="text-xs text-gray-400 mt-4 text-center">
+        Revenue reflects paid orders only. Refunded transactions are excluded.
+      </p>
+    }
+
+    @if (!loading && !earnings) {
+      <div class="text-center py-16 text-gray-400">
+        <p class="text-4xl mb-3">📉</p>
+        <p class="text-lg font-medium">No earnings data available</p>
+      </div>
+    }
+  </div>
+</div>

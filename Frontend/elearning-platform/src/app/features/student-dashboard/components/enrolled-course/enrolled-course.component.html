@@ -1,164 +1,459 @@
-<div class="min-h-screen bg-gray-50" *ngIf="!loading">
-  <!-- Header -->
-  <div class="bg-white shadow">
-    <div class="max-w-7xl mx-auto py-6 px-4 flex items-center justify-between">
-      <div>
-        <a routerLink="/dashboard" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium mb-2 inline-block">
-          ← Back to Dashboard
-        </a>
-        <h1 class="text-3xl font-bold text-gray-900">{{ course?.title }}</h1>
+<!-- Loading -->
+<div *ngIf="loading" class="min-h-screen bg-gray-900 flex items-center justify-center">
+  <div class="text-center">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+    <p class="text-gray-400 text-sm">Loading course…</p>
+  </div>
+</div>
+
+<!-- Main layout -->
+<div *ngIf="!loading" class="min-h-screen bg-gray-900 flex flex-col">
+
+  <!-- ── Top bar ─────────────────────────────────────────── -->
+  <div class="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center gap-4 flex-shrink-0">
+    <a routerLink="/dashboard"
+       class="flex items-center gap-1.5 text-gray-400 hover:text-white text-sm transition flex-shrink-0">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Dashboard
+    </a>
+
+    <h1 class="text-white font-semibold text-sm truncate flex-1">{{ course?.title }}</h1>
+
+    <!-- Overall progress -->
+    <div class="hidden sm:flex items-center gap-3 flex-shrink-0">
+      <span class="text-xs text-gray-400">{{ completedCount }}/{{ totalCount }} lessons</span>
+      <div class="w-28 bg-gray-600 rounded-full h-1.5">
+        <div class="bg-green-500 h-1.5 rounded-full transition-all duration-500"
+             [style.width.%]="courseProgressPct"></div>
       </div>
-      <div class="text-right" *ngIf="enrollment">
-        <p class="text-sm text-gray-600">Progress</p>
-        <p class="text-3xl font-bold text-indigo-600">{{ enrollment.completionPercentage }}%</p>
-      </div>
+      <span class="text-xs text-green-400 font-medium">{{ courseProgressPct }}%</span>
     </div>
   </div>
 
-  <div class="max-w-7xl mx-auto py-8 px-4">
-    <!-- Error Alert -->
-    <div *ngIf="error" class="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-      {{ error }}
-    </div>
+  <div class="flex flex-1 overflow-hidden">
 
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-      <!-- Sidebar - Course Curriculum -->
-      <div class="lg:col-span-1">
-        <div class="bg-white rounded-lg shadow p-4 sticky top-4">
-          <h2 class="text-lg font-bold text-gray-900 mb-4">Course Curriculum</h2>
+    <!-- ── Sidebar ─────────────────────────────────────────── -->
+    <aside class="w-72 bg-gray-800 border-r border-gray-700 flex flex-col flex-shrink-0 overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-700">
+        <p class="text-white font-semibold text-sm">Course Content</p>
+        <p class="text-gray-400 text-xs mt-0.5">{{ totalCount }} lessons</p>
+      </div>
 
-          <div class="space-y-2 max-h-screen overflow-y-auto">
-            <div *ngFor="let section of course?.sections" class="border rounded-lg p-3">
-              <button
-                (click)="selectSection(section)"
-                [class.bg-indigo-50]="selectedSection?.id === section.id"
-                class="w-full text-left font-medium text-gray-900 mb-2 p-2 rounded hover:bg-gray-50 transition"
-              >
-                {{ section.title }}
-              </button>
+      <div class="overflow-y-auto flex-1 sidebar-scroll">
+        <div *ngFor="let section of course?.sections; let si = index" class="border-b border-gray-700/60">
 
-              <div *ngIf="selectedSection?.id === section.id" class="space-y-1 ml-2">
-                <button
-                  *ngFor="let lesson of section.lessons"
-                  (click)="selectLesson(lesson)"
-                  [class.bg-indigo-100]="selectedLesson?.id === lesson.id"
-                  class="w-full text-left text-sm text-gray-700 py-1 px-2 rounded hover:bg-gray-100 transition flex items-center"
-                >
-                  <span class="mr-2" [ngClass]="{'text-green-500': lesson.isCompleted, 'text-gray-400': !lesson.isCompleted}">
-                    {{ lesson.isCompleted ? '✓' : '○' }}
-                  </span>
+          <!-- Section header -->
+          <button (click)="toggleSection(section.id)"
+                  class="w-full flex items-center gap-2 px-4 py-3 hover:bg-gray-700/50 transition text-left">
+            <svg class="w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0"
+                 [class.rotate-90]="expandedSections.has(section.id)"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-200 truncate">{{ section.title }}</p>
+              <p class="text-xs text-gray-500 mt-0.5">{{ section.lessons?.length || 0 }} lessons</p>
+            </div>
+          </button>
+
+          <!-- Lessons -->
+          <div *ngIf="expandedSections.has(section.id)">
+            <button *ngFor="let lesson of section.lessons"
+                    (click)="selectLesson(lesson, section)"
+                    class="w-full flex items-start gap-3 px-4 py-2.5 text-left transition border-l-2"
+                    [class.bg-indigo-900]="selectedLesson?.id === lesson.id"
+                    [class.border-indigo-500]="selectedLesson?.id === lesson.id"
+                    [class.border-transparent]="selectedLesson?.id !== lesson.id"
+                    [class.hover:bg-gray-700]="selectedLesson?.id !== lesson.id">
+
+              <!-- Completion circle -->
+              <span class="mt-0.5 flex-shrink-0">
+                <svg *ngIf="isLessonCompleted(lesson.id)"
+                     class="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"/>
+                </svg>
+                <span *ngIf="!isLessonCompleted(lesson.id)"
+                      class="block w-4 h-4 rounded-full border-2"
+                      [class.border-indigo-400]="selectedLesson?.id === lesson.id"
+                      [class.border-gray-500]="selectedLesson?.id !== lesson.id"></span>
+              </span>
+
+              <div class="flex-1 min-w-0">
+                <p class="text-xs leading-snug truncate"
+                   [class.text-white]="selectedLesson?.id === lesson.id"
+                   [class.font-medium]="selectedLesson?.id === lesson.id"
+                   [class.text-gray-300]="selectedLesson?.id !== lesson.id">
                   {{ lesson.title }}
+                </p>
+                <p *ngIf="lesson.durationMinutes" class="text-xs text-gray-500 mt-0.5">
+                  {{ lesson.durationMinutes }} min
+                </p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Main ───────────────────────────────────────────── -->
+    <main class="flex-1 overflow-y-auto bg-gray-900">
+
+      <!-- Error -->
+      <div *ngIf="error" class="m-4 p-4 bg-red-900/40 border border-red-700 text-red-300 rounded-lg text-sm">
+        {{ error }}
+      </div>
+
+      <!-- No lesson selected -->
+      <div *ngIf="!selectedLesson && !error"
+           class="flex flex-col items-center justify-center h-full text-gray-500 py-24">
+        <svg class="w-16 h-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <p class="text-sm">Select a lesson from the sidebar to start learning</p>
+      </div>
+
+      <ng-container *ngIf="selectedLesson">
+
+        <!-- ── Video Player ──────────────────────────────── -->
+        <div *ngIf="getVideoUrl(selectedLesson) as videoSrc">
+          <div #playerContainer
+               class="relative bg-black group select-none"
+               (mousemove)="onPlayerMouseMove()"
+               (mouseleave)="onPlayerMouseLeave()">
+
+            <!-- Video -->
+            <video #videoEl
+                   class="w-full max-h-[65vh] block"
+                   [src]="videoSrc"
+                   (loadedmetadata)="onMetadataLoaded()"
+                   (timeupdate)="onTimeUpdate()"
+                   (ended)="onEnded()"
+                   (click)="togglePlay()"
+                   preload="metadata">
+            </video>
+
+            <!-- Big play/pause overlay (centre) -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-200"
+                 [class.opacity-100]="!isPlaying && duration > 0"
+                 [class.opacity-0]="isPlaying || duration === 0">
+              <div class="w-20 h-20 rounded-full bg-black/50 flex items-center justify-center">
+                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Resume banner (shows for 4 s on load) -->
+            <div *ngIf="getLessonProgress(selectedLesson.id)?.watchedSeconds > 0 && currentTime < 2 && duration === 0"
+                 class="absolute top-3 left-3 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+              Resuming from {{ fmt(getLessonProgress(selectedLesson.id)?.watchedSeconds) }}
+            </div>
+
+            <!-- Controls overlay -->
+            <div class="absolute bottom-0 left-0 right-0 transition-opacity duration-300 px-4 pb-3 pt-8"
+                 style="background: linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.2) 80%, transparent 100%)"
+                 [class.opacity-100]="showControls"
+                 [class.opacity-0]="!showControls">
+
+              <!-- Seek bar -->
+              <div #seekBar
+                   class="relative h-1 hover:h-2 bg-gray-600 rounded-full cursor-pointer mb-3 transition-all duration-150"
+                   (click)="seek($event, seekBar)">
+                <!-- Buffered -->
+                <div class="absolute top-0 left-0 h-full bg-gray-400/50 rounded-full pointer-events-none"
+                     [style.width.%]="bufferedPercent"></div>
+                <!-- Played -->
+                <div class="absolute top-0 left-0 h-full bg-indigo-500 rounded-full pointer-events-none"
+                     [style.width.%]="progressPct"></div>
+                <!-- Thumb -->
+                <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full shadow pointer-events-none"
+                     [style.left.%]="progressPct"></div>
+              </div>
+
+              <!-- Controls row -->
+              <div class="flex items-center gap-3">
+
+                <!-- Play/Pause -->
+                <button (click)="togglePlay()"
+                        class="text-white hover:text-indigo-300 transition flex-shrink-0"
+                        [title]="isPlaying ? 'Pause (Space)' : 'Play (Space)'">
+                  <svg *ngIf="!isPlaying" class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                  <svg *ngIf="isPlaying" class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                  </svg>
+                </button>
+
+                <!-- Skip back 10 s -->
+                <button (click)="videoEl.currentTime = videoEl.currentTime - 10"
+                        class="text-white hover:text-indigo-300 transition flex-shrink-0" title="−10 s">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                    <text x="8" y="15" font-size="6" fill="currentColor">10</text>
+                  </svg>
+                </button>
+
+                <!-- Skip forward 10 s -->
+                <button (click)="videoEl.currentTime = videoEl.currentTime + 10"
+                        class="text-white hover:text-indigo-300 transition flex-shrink-0" title="+10 s">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/>
+                  </svg>
+                </button>
+
+                <!-- Time -->
+                <span class="text-white text-xs font-mono tabular-nums flex-shrink-0">
+                  {{ fmt(currentTime) }} / {{ fmt(duration) }}
+                </span>
+
+                <div class="flex-1"></div>
+
+                <!-- Volume -->
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <button (click)="toggleMute()"
+                          class="text-white hover:text-indigo-300 transition" title="Mute (M)">
+                    <!-- Muted -->
+                    <svg *ngIf="isMuted" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zm-13.14-9L4.27 1.73 3 3l4 4H3v8h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06A8.99 8.99 0 0019 21l2 2 1.27-1.27L5.86 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                    </svg>
+                    <!-- Low volume -->
+                    <svg *ngIf="!isMuted && volume < 0.5" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M18.5 12A4.5 4.5 0 0016 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>
+                    </svg>
+                    <!-- High volume -->
+                    <svg *ngIf="!isMuted && volume >= 0.5" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                    </svg>
+                  </button>
+                  <input type="range" min="0" max="1" step="0.02"
+                         [value]="isMuted ? 0 : volume"
+                         (input)="setVolume(+$any($event.target).value)"
+                         class="volume-slider w-20 h-1 rounded-full cursor-pointer"
+                         title="Volume"/>
+                </div>
+
+                <!-- Add note -->
+                <button (click)="showNoteInput = !showNoteInput; activeTab = 'notes'"
+                        class="text-white hover:text-yellow-400 transition flex-shrink-0" title="Add note at current time">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                </button>
+
+                <!-- Fullscreen -->
+                <button (click)="toggleFullscreen()"
+                        class="text-white hover:text-indigo-300 transition flex-shrink-0" title="Fullscreen (F)">
+                  <svg *ngIf="!isFullscreen" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                  </svg>
+                  <svg *ngIf="isFullscreen" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+                  </svg>
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Main Content -->
-      <div class="lg:col-span-3">
-        <div *ngIf="selectedLesson" class="bg-white rounded-lg shadow p-6">
-          <!-- Lesson Header -->
-          <div class="mb-6">
-            <div class="flex items-center justify-between mb-4">
-              <h1 class="text-3xl font-bold text-gray-900">{{ selectedLesson.title }}</h1>
-              <span
-                *ngIf="selectedLesson.isCompleted"
-                class="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-sm font-medium"
-              >
-                ✓ Completed
-              </span>
-            </div>
-            <p class="text-gray-600">{{ selectedLesson.description }}</p>
-          </div>
+        <!-- ── Below video ───────────────────────────────── -->
+        <div class="max-w-5xl mx-auto px-6 py-5">
 
-          <!-- Video Player -->
-          <div *ngIf="selectedLesson.content?.videoUrl" class="mb-6">
-            <div class="bg-black rounded-lg overflow-hidden mb-4">
-              <video
-                controls
-                class="w-full"
-                [src]="selectedLesson.content.videoUrl"
-              ></video>
+          <!-- Lesson header -->
+          <div class="flex items-start justify-between gap-4 mb-6">
+            <div class="flex-1 min-w-0">
+              <h2 class="text-xl font-bold text-white leading-tight">{{ selectedLesson.title }}</h2>
+              <p *ngIf="selectedLesson.description" class="text-gray-400 text-sm mt-1.5 leading-relaxed">
+                {{ selectedLesson.description }}
+              </p>
             </div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-gray-600">Duration: {{ selectedLesson.durationMinutes }} minutes</span>
-              <button
-                (click)="markLessonComplete()"
-                [disabled]="selectedLesson.isCompleted"
-                class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-green-500 text-white px-6 py-2 rounded-lg font-medium transition"
-              >
-                {{ selectedLesson.isCompleted ? '✓ Completed' : 'Mark as Complete' }}
-              </button>
+
+            <!-- Mark complete / completed badge -->
+            <button
+              *ngIf="!isLessonCompleted(selectedLesson.id)"
+              (click)="markComplete()"
+              class="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              Mark Complete
+            </button>
+            <div *ngIf="isLessonCompleted(selectedLesson.id)"
+                 class="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-green-900/60 text-green-400 text-sm font-medium rounded-lg">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd"/>
+              </svg>
+              Completed
             </div>
           </div>
 
-          <!-- Lesson Content -->
-          <div *ngIf="selectedLesson.content?.textContent" class="mb-6 prose max-w-none">
-            <div class="bg-gray-50 p-6 rounded-lg">
-              <h3 class="font-bold text-gray-900 mb-4">Lesson Notes</h3>
-              <div class="text-gray-700 whitespace-pre-wrap">
-                {{ selectedLesson.content.textContent }}
+          <!-- Tabs -->
+          <div class="flex gap-1 border-b border-gray-700 mb-5">
+            <button *ngFor="let tab of [
+                      {key: 'about', label: 'About'},
+                      {key: 'notes', label: 'Notes (' + notes.length + ')'},
+                      {key: 'resources', label: 'Resources'}
+                    ]"
+                    (click)="activeTab = $any(tab.key)"
+                    class="px-4 py-2 text-sm font-medium transition border-b-2 -mb-px"
+                    [class.border-indigo-500]="activeTab === tab.key"
+                    [class.text-indigo-400]="activeTab === tab.key"
+                    [class.border-transparent]="activeTab !== tab.key"
+                    [class.text-gray-400]="activeTab !== tab.key"
+                    [class.hover:text-gray-200]="activeTab !== tab.key">
+              {{ tab.label }}
+            </button>
+          </div>
+
+          <!-- Tab: About -->
+          <div *ngIf="activeTab === 'about'">
+            <div *ngIf="getTextContent(selectedLesson) as textContent"
+                 class="bg-gray-800 rounded-xl p-5 text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+              {{ textContent }}
+            </div>
+            <div *ngIf="!getTextContent(selectedLesson)"
+                 class="text-gray-500 text-sm py-4">
+              No additional content for this lesson.
+            </div>
+          </div>
+
+          <!-- Tab: Notes -->
+          <div *ngIf="activeTab === 'notes'" class="space-y-3">
+
+            <!-- Add note input -->
+            <div *ngIf="showNoteInput"
+                 class="bg-gray-800 rounded-xl p-4 border border-indigo-700/50">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-xs text-indigo-400 font-mono bg-indigo-900/50 px-2 py-0.5 rounded">
+                  ⏱ {{ fmt(currentTime) }}
+                </span>
+                <span class="text-gray-400 text-xs">Note at current time</span>
+              </div>
+              <textarea [(ngModel)]="newNoteText"
+                        rows="3"
+                        placeholder="Write your note here…"
+                        class="w-full bg-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 resize-none outline-none border border-gray-600 focus:border-indigo-500 placeholder-gray-500">
+              </textarea>
+              <div class="flex gap-2 mt-3">
+                <button (click)="addNote()"
+                        [disabled]="!newNoteText.trim()"
+                        class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm rounded-lg transition">
+                  Save Note
+                </button>
+                <button (click)="showNoteInput = false; newNoteText = ''"
+                        class="px-4 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition">
+                  Cancel
+                </button>
               </div>
             </div>
+
+            <!-- Add note trigger -->
+            <button *ngIf="!showNoteInput"
+                    (click)="showNoteInput = true"
+                    class="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+              </svg>
+              Add note at {{ fmt(currentTime) }}
+            </button>
+
+            <!-- Notes list -->
+            <div *ngIf="notes.length > 0" class="space-y-2">
+              <div *ngFor="let note of notes"
+                   class="flex gap-3 bg-gray-800 rounded-xl p-4 hover:bg-gray-750 group">
+                <button (click)="seekToNote(note.timestamp)"
+                        class="flex-shrink-0 text-xs text-indigo-400 font-mono bg-indigo-900/50 hover:bg-indigo-800/60 px-2.5 py-1 rounded transition">
+                  {{ fmt(note.timestamp) }}
+                </button>
+                <p class="text-gray-300 text-sm leading-relaxed flex-1">{{ note.text }}</p>
+                <button (click)="deleteNote(note.id)"
+                        class="flex-shrink-0 text-gray-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div *ngIf="notes.length === 0 && !showNoteInput"
+                 class="text-gray-500 text-sm py-4">
+              No notes yet. Pause the video and click <span class="text-indigo-400">Add note</span> to capture a thought at any timestamp.
+            </div>
           </div>
 
-          <!-- Resources -->
-          <div *ngIf="selectedLesson.content?.resourceUrl" class="mb-6">
-            <h3 class="font-bold text-gray-900 mb-3">Resources</h3>
-            <a
-              [href]="selectedLesson.content.resourceUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-block bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 transition"
-            >
-              📥 Download Resources
+          <!-- Tab: Resources -->
+          <div *ngIf="activeTab === 'resources'">
+            <div *ngIf="getResourceUrl(selectedLesson) as resUrl">
+              <a [href]="resUrl" target="_blank" rel="noopener noreferrer"
+                 class="inline-flex items-center gap-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-xl px-5 py-4 transition border border-gray-700">
+                <svg class="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <div>
+                  <p class="text-sm font-medium">Download Resources</p>
+                  <p class="text-xs text-gray-400 mt-0.5">Supplementary material for this lesson</p>
+                </div>
+              </a>
+            </div>
+            <div *ngIf="!getResourceUrl(selectedLesson)"
+                 class="text-gray-500 text-sm py-4">
+              No downloadable resources for this lesson.
+            </div>
+          </div>
+
+          <!-- Prev / Next navigation -->
+          <div class="flex items-center justify-between mt-8 pt-6 border-t border-gray-700">
+            <button (click)="navigate('prev')"
+                    [disabled]="currentIndex <= 0"
+                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 text-sm rounded-lg transition">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+              </svg>
+              Previous
+            </button>
+
+            <span class="text-gray-500 text-xs">{{ currentIndex + 1 }} / {{ totalCount }}</span>
+
+            <button (click)="navigate('next')"
+                    [disabled]="currentIndex >= totalCount - 1"
+                    class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-sm rounded-lg transition">
+              Next
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Certificate banner -->
+          <div *ngIf="enrollment?.completedAt && enrollment?.certificateId"
+               class="mt-8 bg-green-900/40 border border-green-700 rounded-xl p-6 flex items-center gap-4">
+            <svg class="w-10 h-10 text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+            </svg>
+            <div class="flex-1">
+              <p class="text-green-300 font-semibold">Course Completed!</p>
+              <p class="text-green-400/70 text-sm mt-0.5">Congratulations on finishing this course.</p>
+            </div>
+            <a [routerLink]="['/dashboard/certificate', enrollment.certificateId]"
+               class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-lg transition">
+              Download Certificate
             </a>
           </div>
 
-          <!-- Navigation -->
-          <div class="flex items-center justify-between pt-6 border-t">
-            <button
-              *ngIf="selectedLesson !== selectedSection?.lessons?.[0]"
-              class="text-indigo-600 hover:text-indigo-700 font-medium"
-            >
-              ← Previous Lesson
-            </button>
-            <div class="flex-1"></div>
-            <button
-              *ngIf="selectedLesson !== selectedSection?.lessons?.[(selectedSection?.lessons?.length || 1) - 1]"
-              class="text-indigo-600 hover:text-indigo-700 font-medium"
-            >
-              Next Lesson →
-            </button>
-          </div>
-
-          <!-- Certificate Section -->
-          <div *ngIf="enrollment?.completedAt && enrollment?.certificateId" class="mt-6 bg-green-50 border border-green-200 rounded-lg p-6">
-            <h3 class="font-bold text-green-900 mb-2">🎓 Course Complete!</h3>
-            <p class="text-green-700 mb-4">Congratulations on completing this course! Download your certificate below.</p>
-            <button
-              (click)="downloadCertificate()"
-              class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition"
-            >
-              Download Certificate
-            </button>
-          </div>
         </div>
-
-        <!-- Empty State -->
-        <div *ngIf="!selectedLesson" class="bg-white rounded-lg shadow p-12 text-center">
-          <p class="text-gray-600 text-lg">Select a lesson to start learning</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Loading State -->
-<div *ngIf="loading" class="min-h-screen flex items-center justify-center">
-  <div class="text-center">
-    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-    <p class="text-gray-600">Loading course...</p>
+      </ng-container>
+    </main>
   </div>
 </div>

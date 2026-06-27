@@ -13,15 +13,15 @@ import { AuthService } from '@core/services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './student-dashboard.component.html',
+  styleUrl: './student-dashboard.component.scss'
 })
 export class StudentDashboardComponent implements OnInit, OnDestroy {
   enrolledCourses: any[] = [];
   recommendedCourses: any[] = [];
-  studentProgress: any = null;
+  studentName = '';
   loading = false;
   error: string | null = null;
-
-  currentUser: any = null;
+  showNotifications = false;
 
   private destroy$ = new Subject<void>();
 
@@ -34,12 +34,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.authService.getCurrentUser$()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(user => {
-        this.currentUser = user;
-      });
-
     this.loadDashboardData();
   }
 
@@ -47,54 +41,88 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = null;
 
-    // Load enrolled courses
+    this.userService.getProfile()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (profile) => {
+          this.studentName = `${profile.firstName} ${profile.lastName}`.trim();
+        },
+        error: () => {
+          const user = this.authService.getCurrentUserSnapshot();
+          this.studentName = user?.email || 'Student';
+        }
+      });
+
     this.enrollmentService.getEnrollments()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (enrollments) => {
           this.enrolledCourses = enrollments;
+          this.loading = false;
         },
-        error: (error) => {
+        error: () => {
           this.error = 'Failed to load enrolled courses.';
+          this.loading = false;
         }
       });
 
-    // Load recommended courses
     this.userService.getRecommendedCourses()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (courses) => {
+          if (courses && courses.length > 0) {
+            this.recommendedCourses = courses;
+          } else {
+            this.loadPopularCourses();
+          }
+        },
+        error: () => {
+          this.loadPopularCourses();
+        }
+      });
+  }
+
+  private loadPopularCourses(): void {
+    this.courseService.getPopular(6)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (courses) => {
           this.recommendedCourses = courses;
         },
         error: () => {
-          this.recommendedCourses = [];
-        }
-      });
-
-    // Load student progress
-    this.userService.getUserProgress()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (progress) => {
-          this.studentProgress = progress;
-          this.loading = false;
-        },
-        error: (error) => {
-          this.loading = false;
+          this.courseService.getAllCourses()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: (courses) => {
+                this.recommendedCourses = courses.slice(0, 6);
+              },
+              error: () => {
+                this.recommendedCourses = [];
+              }
+            });
         }
       });
   }
 
-  continueCourse(courseId: string): void {
+  continueCourse(courseId: number): void {
     this.router.navigate(['/dashboard/my-courses', courseId]);
   }
 
-  viewCourse(courseId: string): void {
+  viewCourse(courseId: number): void {
     this.router.navigate(['/courses', courseId]);
   }
 
-  getProgressPercentage(progress: any): number {
-    return Math.round((progress.completedLessons / progress.totalLessons) * 100);
+  getProgress(enrollment: any): number {
+    return Math.round(enrollment.completionPercentage || 0);
+  }
+
+  toggleNotifications(): void {
+    this.showNotifications = !this.showNotifications;
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigate(['/']);
   }
 
   ngOnDestroy(): void {
