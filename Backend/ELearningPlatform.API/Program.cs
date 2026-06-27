@@ -1,16 +1,14 @@
 using ELearningPlatform.Application.Services;
-using ELearningPlatform.Core.Interfaces;
 using ELearningPlatform.Infrastructure.Cloudinary;
 using ELearningPlatform.Infrastructure.DbContext;
 using ELearningPlatform.Infrastructure.UnitOfWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,10 +59,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngular", policy =>
     {
-        policy.WithOrigins("http://localhost:4200", "https://localhost:4200")
+        policy.WithOrigins("http://angular.runasp.net",
+            "https://angular.runasp.net", 
+            "http://localhost:4200", "https://localhost:4200")
               .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+              .AllowAnyHeader();
     });
 });
 
@@ -115,12 +114,12 @@ builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    app.MapGet("/", () => Microsoft.AspNetCore.Http.Results.Redirect("/swagger"));
-}
+app.UseSwagger();
+app.UseSwaggerUI();
+app.MapGet("/", () => Microsoft.AspNetCore.Http.Results.Redirect("/swagger"));
+//if (app.Environment.IsDevelopment())
+//{
+//}
 
 app.UseHttpsRedirection();
 
