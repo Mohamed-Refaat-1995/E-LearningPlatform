@@ -27,6 +27,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<Certificate> Certificates { get; }
     public IRepository<Order> Orders { get; }
     public IRepository<OrderItem> OrderItems { get; }
+    public IRepository<Coupon> Coupons { get; }
 
     public UnitOfWork(AppDbContext dbContext)
     {
@@ -50,6 +51,7 @@ public class UnitOfWork : IUnitOfWork
         Certificates = new Repository<Certificate>(_dbContext);
         Orders = new Repository<Order>(_dbContext);
         OrderItems = new Repository<OrderItem>(_dbContext);
+        Coupons = new Repository<Coupon>(_dbContext);
     }
 
     public async Task SaveChangesAsync()

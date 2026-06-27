@@ -1,0 +1,55 @@
+<div class="min-h-screen bg-white">
+  <app-header></app-header>
+
+  <nav class="border-b border-gray-200 bg-white">
+    <div class="max-w-7xl mx-auto flex gap-6 px-4 py-3 overflow-x-auto text-sm font-semibold text-gray-700">
+      <a *ngFor="let c of categories"
+         [routerLink]="['/courses']"
+         [queryParams]="{ category: c }"
+         class="whitespace-nowrap hover:text-indigo-700">{{ c }}</a>
+      <span *ngIf="categories.length === 0" class="text-gray-400">Loading categories…</span>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <section class="flex items-center gap-4 mb-10">
+      <div class="w-16 h-16 rounded-full bg-gray-900 text-white flex items-center justify-center text-xl font-bold">
+        {{ initials }}
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">
+          <ng-container *ngIf="user; else welcomeAnon">Welcome back, {{ firstName }}</ng-container>
+          <ng-template #welcomeAnon>Welcome to eLearn</ng-template>
+        </h1>
+        <a *ngIf="user" routerLink="/profile" class="text-sm text-indigo-700 underline">
+          Add occupation and interests
+        </a>
+        <a *ngIf="!user" routerLink="/auth/register" class="text-sm text-indigo-700 underline">
+          Sign up to get personal recommendations
+        </a>
+      </div>
+    </section>
+
+    <h2 class="text-3xl font-bold text-gray-900 mb-6">What to learn next</h2>
+
+    <app-course-row
+      [title]="user ? 'Recommended for you' : 'Top picks'"
+      [courses]="recommended"
+      [loading]="loadingRecommended">
+    </app-course-row>
+
+    <app-course-row
+      title="Most popular"
+      subtitle="Most enrolled courses on the platform"
+      [courses]="popular"
+      [loading]="loadingPopular">
+    </app-course-row>
+
+    <app-course-row
+      title="Top rated"
+      subtitle="Highest-rated by learners"
+      [courses]="topRated"
+      [loading]="loadingTopRated">
+    </app-course-row>
+  </main>
+</div>

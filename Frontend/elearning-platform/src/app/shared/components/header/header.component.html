@@ -1,0 +1,44 @@
+<header class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+  <div class="max-w-7xl mx-auto flex items-center gap-4 px-4 py-3">
+    <a routerLink="/" class="text-2xl font-extrabold text-indigo-700 tracking-tight">eLearn</a>
+
+    <a routerLink="/courses" class="hidden md:inline text-sm text-gray-700 hover:text-indigo-700">Explore</a>
+
+    <form class="flex-1 max-w-2xl" (submit)="onSearch($event)">
+      <div class="relative">
+        <input
+          type="search"
+          [(ngModel)]="searchTerm"
+          name="searchTerm"
+          placeholder="Search for anything"
+          class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+        <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M9 3a6 6 0 104.47 10.03l3.25 3.25a1 1 0 001.41-1.41l-3.25-3.25A6 6 0 009 3zm0 2a4 4 0 110 8 4 4 0 010-8z" clip-rule="evenodd" />
+        </svg>
+      </div>
+    </form>
+
+    <a *ngIf="user?.role === 2" routerLink="/instructor" class="hidden md:inline text-sm text-gray-700 hover:text-indigo-700">Teach</a>
+    <a *ngIf="isAuthed" routerLink="/dashboard" class="hidden md:inline text-sm text-gray-700 hover:text-indigo-700">My learning</a>
+
+    <ng-container *ngIf="isAuthed; else guest">
+      <div class="flex items-center gap-2">
+        <span class="hidden sm:inline text-sm text-gray-700">{{ user?.email }}</span>
+        <button (click)="logout()" class="text-sm text-indigo-700 hover:underline">Logout</button>
+      </div>
+    </ng-container>
+
+    <ng-template #guest>
+      <div class="flex items-center gap-2">
+        <a routerLink="/auth/login"
+           class="px-3 py-1.5 border border-gray-800 text-sm font-semibold text-gray-900 hover:bg-gray-50">
+          Log in
+        </a>
+        <a routerLink="/auth/register"
+           class="px-3 py-1.5 bg-gray-900 text-sm font-semibold text-white hover:bg-black">
+          Sign up
+        </a>
+      </div>
+    </ng-template>
+  </div>
+</header>

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ELearningPlatform.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/orders")]
 [Authorize]
 public class OrderController : ControllerBase
 {

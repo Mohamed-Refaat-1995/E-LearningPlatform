@@ -12,6 +12,7 @@ import { Quiz, SubmitQuizRequest } from '@shared/models/quiz.model';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './quiz-taking.component.html',
+  styleUrl: './quiz-taking.component.scss'
 })
 export class QuizTakingComponent implements OnInit, OnDestroy {
   quiz: Quiz | null = null;

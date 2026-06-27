@@ -1,0 +1,56 @@
+:host { display: block; }
+
+/* Volume slider — cross-browser */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #4b5563; /* gray-600 */
+  outline: none;
+  border-radius: 9999px;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+  }
+
+  &::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: none;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+  }
+
+  /* Filled track (Chrome/Safari) */
+  &::-webkit-slider-runnable-track {
+    border-radius: 9999px;
+    height: 4px;
+  }
+}
+
+/* Sidebar scrollbar */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #374151 transparent;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #374151;
+    border-radius: 9999px;
+  }
+}

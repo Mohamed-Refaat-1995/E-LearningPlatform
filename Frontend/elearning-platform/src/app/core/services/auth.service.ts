@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, tap, catchError } from 'rxjs/operators';
 import { User, UserRole } from '@shared/models/user.model';
-import { environment } from '@environments/environment';
+import { ConfigService } from './config.service';
 
 export interface LoginRequest {
   email: string;
@@ -31,11 +31,11 @@ export interface TokenResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly API_URL = `${environment.apiUrl}/auth`;
+  private get API_URL() { return `${this.config.apiUrl}/auth`; }
   private currentUser$ = new BehaviorSubject<User | null>(null);
   private _isAuthenticated$ = new BehaviorSubject<boolean>(false);
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private config: ConfigService) {
     this.loadStoredUser();
   }
 
@@ -76,6 +76,10 @@ export class AuthService {
 
   getCurrentUser$(): Observable<User | null> {
     return this.currentUser$.asObservable();
+  }
+
+  getCurrentUserSnapshot(): User | null {
+    return this.currentUser$.value;
   }
 
   isAuthenticated(): Observable<boolean> {

@@ -19,7 +19,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
     {
         var (success, message, userId) = await _authService.RegisterAsync(
-            request.FirstName, request.LastName, request.Email, request.Password);
+            request.FirstName, request.LastName, request.Email, request.Password, request.Role);
 
         if (!success)
             return BadRequest(new { message });
@@ -30,7 +30,7 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
-        var (success, message, token, refreshToken) = await _authService.LoginAsync(request.Email, request.Password);
+        var (success, message, token, refreshToken, userId, role) = await _authService.LoginAsync(request.Email, request.Password);
 
         if (!success)
             return Unauthorized(new { message });
@@ -39,24 +39,49 @@ public class AuthController : ControllerBase
         {
             Token = token!,
             RefreshToken = refreshToken!,
-            Email = request.Email
+            Email = request.Email,
+            Role = role ?? "Student",
+            UserId = userId ?? 0
         };
 
         return Ok(response);
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> RefreshToken([FromBody] dynamic request)
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto request)
     {
-        var refreshToken = request?.refreshToken as string;
-        if (string.IsNullOrEmpty(refreshToken))
+        if (string.IsNullOrEmpty(request.RefreshToken))
             return BadRequest(new { message = "Refresh token is required" });
 
-        var (success, token, newRefreshToken) = await _authService.RefreshTokenAsync(refreshToken);
+        var (success, token, newRefreshToken) = await _authService.RefreshTokenAsync(request.RefreshToken);
 
         if (!success)
             return Unauthorized(new { message = "Invalid refresh token" });
 
         return Ok(new { token, refreshToken = newRefreshToken });
     }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)
+    {
+        var (success, message, code) = await _authService.RequestPasswordResetAsync(request.Email);
+
+        // In production, send code by email. For development, return it.
+        return Ok(new { message, code });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request)
+    {
+        var (success, message) = await _authService.ResetPasswordAsync(request.Email, request.Code, request.NewPassword);
+
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new { message });
+    }
 }
+
+public record RefreshTokenRequestDto(string RefreshToken);
+public record ForgotPasswordRequestDto(string Email);
+public record ResetPasswordRequestDto(string Email, string Code, string NewPassword);

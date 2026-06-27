@@ -35,6 +35,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<Certificate> Certificates { get; set; } = null!;
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
+    public DbSet<Coupon> Coupons { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +59,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         ConfigureCertificateEntity(modelBuilder);
         ConfigureOrderEntity(modelBuilder);
         ConfigureOrderItemEntity(modelBuilder);
+        ConfigureCouponEntity(modelBuilder);
 
         foreach (var fk in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()))
         {
@@ -274,6 +276,21 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.HasIndex(e => new { e.StudentId, e.CourseId }).IsUnique();
             entity.HasOne(e => e.Course).WithMany().HasForeignKey(e => e.CourseId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.Student).WithMany(u => u.Certificates).HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.NoAction);
+        });
+    }
+
+    private void ConfigureCouponEntity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Coupon>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => e.Code);
+            entity.Property(e => e.DiscountType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.DiscountValue).HasPrecision(18, 2);
+            entity.Property(e => e.MaxDiscountAmount).HasPrecision(18, 2);
+            entity.HasOne(e => e.Course).WithMany().HasForeignKey(e => e.CourseId)
+                  .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
     }
 
