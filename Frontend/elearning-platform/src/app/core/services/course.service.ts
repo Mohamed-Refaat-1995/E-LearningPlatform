@@ -120,4 +120,12 @@ export class CourseService {
   getLevels(): Observable<string[]> {
     return of(['Beginner', 'Intermediate', 'Advanced']);
   }
+
+  generateCertificate(courseId: number): Observable<any> {
+    return this.http.post(`${this.API_URL}/${courseId}/certificate`, {});
+  }
+
+  getCompletionStatus(courseId: number): Observable<any> {
+    return this.http.get(`${this.API_URL}/${courseId}/completion-status`);
+  }
 }

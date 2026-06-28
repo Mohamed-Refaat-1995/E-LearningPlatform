@@ -12,6 +12,7 @@
       <div class="flex items-center gap-3">
         <span class="text-sm text-gray-500">{{ totalLessons() }} lesson{{ totalLessons() !== 1 ? 's' : '' }} · {{ sections.length }} section{{ sections.length !== 1 ? 's' : '' }}</span>
         <a [routerLink]="['/instructor/manage', courseId]" class="text-sm text-indigo-600 hover:underline">Edit Info</a>
+        <a [routerLink]="['/instructor/quizzes', courseId]" class="text-sm text-indigo-600 hover:underline">Quizzes</a>
         <a [routerLink]="['/courses', courseId]" target="_blank" class="text-sm text-gray-600 hover:underline">Preview ↗</a>
         @if (totalLessons() > 0) {
           <button (click)="saveCourse()" [disabled]="savingCourse"

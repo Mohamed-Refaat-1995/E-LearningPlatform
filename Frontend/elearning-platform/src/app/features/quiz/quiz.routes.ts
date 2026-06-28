@@ -4,11 +4,11 @@ import { QuizResultComponent } from './components/quiz-result/quiz-result.compon
 
 export const QUIZ_ROUTES: Routes = [
   {
-    path: ':id',
+    path: ':quizId/take',
     component: QuizTakingComponent
   },
   {
-    path: 'result/:id',
+    path: ':quizId/result/:id',
     component: QuizResultComponent
   }
 ];

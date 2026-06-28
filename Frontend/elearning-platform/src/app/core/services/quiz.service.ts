@@ -1,7 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Quiz, QuizResult, SubmitQuizRequest, QuizResultResponse } from '@shared/models/quiz.model';
+import {
+  Quiz, QuizResult, SubmitQuizRequest,
+  CreateQuizRequest, UpdateQuizRequest, CreateQuestionRequest, CreateAnswerRequest,
+  Question, Answer
+} from '@shared/models/quiz.model';
 import { ConfigService } from './config.service';
 
 @Injectable({
@@ -18,12 +22,44 @@ export class QuizService {
 
   getCourseQuizzes(courseId: number): Observable<Quiz[]> {
     return this.http.get<Quiz[]>(`${this.API_URL}`, {
-      params: { courseId }
+      params: { courseId: courseId.toString() }
     });
   }
 
-  submitQuiz(quizId: number, request: SubmitQuizRequest): Observable<QuizResultResponse> {
-    return this.http.post<QuizResultResponse>(`${this.API_URL}/${quizId}/submit`, request);
+  createQuiz(request: CreateQuizRequest): Observable<Quiz> {
+    return this.http.post<Quiz>(this.API_URL, request);
+  }
+
+  updateQuiz(id: number, request: UpdateQuizRequest): Observable<Quiz> {
+    return this.http.put<Quiz>(`${this.API_URL}/${id}`, request);
+  }
+
+  deleteQuiz(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/${id}`);
+  }
+
+  togglePublish(id: number): Observable<{ isPublished: boolean }> {
+    return this.http.patch<{ isPublished: boolean }>(`${this.API_URL}/${id}/publish`, {});
+  }
+
+  addQuestion(quizId: number, request: CreateQuestionRequest): Observable<Question> {
+    return this.http.post<Question>(`${this.API_URL}/${quizId}/questions`, request);
+  }
+
+  deleteQuestion(quizId: number, questionId: number): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/${quizId}/questions/${questionId}`);
+  }
+
+  addAnswer(quizId: number, questionId: number, request: CreateAnswerRequest): Observable<Answer> {
+    return this.http.post<Answer>(`${this.API_URL}/${quizId}/questions/${questionId}/answers`, request);
+  }
+
+  deleteAnswer(quizId: number, questionId: number, answerId: number): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/${quizId}/questions/${questionId}/answers/${answerId}`);
+  }
+
+  submitQuiz(quizId: number, request: SubmitQuizRequest): Observable<QuizResult> {
+    return this.http.post<QuizResult>(`${this.API_URL}/${quizId}/submit`, request);
   }
 
   getQuizResult(quizResultId: number): Observable<QuizResult> {
@@ -32,17 +68,5 @@ export class QuizService {
 
   getStudentQuizResults(): Observable<QuizResult[]> {
     return this.http.get<QuizResult[]>(`${this.API_URL}/results`);
-  }
-
-  createQuiz(quiz: Quiz): Observable<Quiz> {
-    return this.http.post<Quiz>(this.API_URL, quiz);
-  }
-
-  updateQuiz(id: number, quiz: Quiz): Observable<Quiz> {
-    return this.http.put<Quiz>(`${this.API_URL}/${id}`, quiz);
-  }
-
-  deleteQuiz(id: number): Observable<any> {
-    return this.http.delete(`${this.API_URL}/${id}`);
   }
 }

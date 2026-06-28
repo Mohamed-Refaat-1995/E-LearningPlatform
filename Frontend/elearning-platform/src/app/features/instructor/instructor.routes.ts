@@ -22,6 +22,11 @@ export const INSTRUCTOR_ROUTES: Routes = [
       .then(m => m.CourseBuilderComponent)
   },
   {
+    path: 'quizzes/:courseId',
+    loadComponent: () => import('./components/quiz-builder/quiz-builder.component')
+      .then(m => m.QuizBuilderComponent)
+  },
+  {
     path: 'earnings',
     loadComponent: () => import('./components/earnings/earnings.component')
       .then(m => m.EarningsComponent)

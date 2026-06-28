@@ -46,4 +46,8 @@ export class UserService {
       { responseType: 'blob' }
     );
   }
+
+  verifyCertificate(code: string): Observable<any> {
+    return this.http.get(`${this.config.apiUrl}/certificates/verify/${code}`);
+  }
 }

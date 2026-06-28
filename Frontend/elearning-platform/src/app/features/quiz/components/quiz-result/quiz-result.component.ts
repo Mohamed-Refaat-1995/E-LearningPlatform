@@ -4,6 +4,8 @@ import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { QuizService } from '@core/services/quiz.service';
+import { ToastService } from '@core/services/toast.service';
+import { QuizResult } from '@shared/models/quiz.model';
 
 @Component({
   selector: 'app-quiz-result',
@@ -13,41 +15,39 @@ import { QuizService } from '@core/services/quiz.service';
   styleUrl: './quiz-result.component.scss'
 })
 export class QuizResultComponent implements OnInit, OnDestroy {
-  quizResult: any = null;
+  quizResult: QuizResult | null = null;
   loading = false;
-  error: string | null = null;
 
   private destroy$ = new Subject<void>();
-  private resultId: string = '';
+  private resultId = 0;
 
   constructor(
     private quizService: QuizService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private toast: ToastService
   ) {}
 
   ngOnInit(): void {
     this.route.params
       .pipe(takeUntil(this.destroy$))
       .subscribe(params => {
-        this.resultId = params['id'];
+        this.resultId = Number(params['id']);
         this.loadQuizResult();
       });
   }
 
   loadQuizResult(): void {
     this.loading = true;
-    this.error = null;
-
-    this.quizService.getQuizResult(Number(this.resultId))
+    this.quizService.getQuizResult(this.resultId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (result) => {
           this.quizResult = result;
           this.loading = false;
         },
-        error: (error) => {
-          this.error = 'Failed to load quiz result. Please try again.';
+        error: () => {
+          this.toast.error('Failed to load quiz result.');
           this.loading = false;
         }
       });
@@ -69,7 +69,9 @@ export class QuizResultComponent implements OnInit, OnDestroy {
   }
 
   retakeQuiz(): void {
-    this.router.navigate(['/quiz', this.quizResult.quizId]);
+    if (this.quizResult) {
+      this.router.navigate(['/quiz', this.quizResult.quizId, 'take']);
+    }
   }
 
   goToDashboard(): void {

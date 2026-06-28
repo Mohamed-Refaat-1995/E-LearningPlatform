@@ -8,6 +8,12 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { CourseService } from '@core/services/course.service';
 import { EnrollmentService } from '@core/services/enrollment.service';
+import { QuizService } from '@core/services/quiz.service';
+import { UserService } from '@core/services/user.service';
+import { ToastService } from '@core/services/toast.service';
+import { Quiz } from '@shared/models/quiz.model';
+import { CourseCompletionStatus } from '@shared/models/certificate.model';
+import { Certificate } from '@shared/models/payment.model';
 
 export interface VideoNote {
   id: string;
@@ -31,6 +37,9 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
   course: any = null;
   enrollment: any = null;
   selectedLesson: any = null;
+  courseQuizzes: Quiz[] = [];
+  completionStatus: CourseCompletionStatus | null = null;
+  certificate: Certificate | null = null;
   loading = false;
   error: string | null = null;
   courseId = 0;
@@ -61,6 +70,9 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
   constructor(
     private courseService: CourseService,
     private enrollmentService: EnrollmentService,
+    private quizService: QuizService,
+    private userService: UserService,
+    private toast: ToastService,
     private route: ActivatedRoute,
     private router: Router,
     private zone: NgZone
@@ -89,12 +101,75 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
           this.course = course;
           course.sections?.forEach((s: any) => this.expandedSections.add(s.id));
           this.loadEnrollment();
+          this.loadQuizzes();
+          this.loadCompletionStatus();
         },
         error: () => {
           this.error = 'Failed to load course. Please try again.';
           this.loading = false;
         }
       });
+  }
+
+  loadQuizzes(): void {
+    this.quizService.getCourseQuizzes(this.courseId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: quizzes => this.courseQuizzes = quizzes });
+  }
+
+  loadCompletionStatus(): void {
+    this.courseService.getCompletionStatus(this.courseId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: status => {
+          this.completionStatus = status;
+          if (status.hasCertificate) this.loadCertificate();
+        }
+      });
+  }
+
+  loadCertificate(): void {
+    this.userService.getUserCertificates()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: certs => {
+          this.certificate = certs.find(c => c.courseId === this.courseId) || null;
+        }
+      });
+  }
+
+  generateCertificate(): void {
+    this.courseService.generateCertificate(this.courseId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: cert => {
+          this.certificate = cert;
+          this.toast.success('Certificate generated!');
+          this.loadCompletionStatus();
+        },
+        error: err => this.toast.error(err.error?.message || 'Not eligible for certificate yet.')
+      });
+  }
+
+  downloadCertificate(): void {
+    if (!this.certificate) return;
+    this.userService.downloadCertificate(this.certificate.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `certificate-${this.certificate!.certificateNumber}.pdf`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+        },
+        error: () => this.toast.error('Failed to download certificate.')
+      });
+  }
+
+  startQuiz(quizId: number): void {
+    this.router.navigate(['/quiz', quizId, 'take']);
   }
 
   loadEnrollment(): void {
@@ -329,7 +404,9 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
       lessonId: this.selectedLesson.id,
       watchedSeconds: secs,
       isCompleted: this.isLessonCompleted(this.selectedLesson.id)
-    }).pipe(takeUntil(this.destroy$)).subscribe();
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => this.loadCompletionStatus()
+    });
   }
 
   markComplete(): void {
@@ -350,7 +427,9 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
       lessonId: this.selectedLesson.id,
       watchedSeconds: Math.floor(this.duration || 0),
       isCompleted: true
-    }).pipe(takeUntil(this.destroy$)).subscribe();
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => this.loadCompletionStatus()
+    });
   }
 
   // ─── Lesson navigation ───────────────────────────────────────────

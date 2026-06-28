@@ -1,0 +1,31 @@
+<div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+  <div class="bg-white rounded-lg shadow-lg p-8 max-w-lg w-full">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">Certificate Verification</h1>
+
+    @if (loading) {
+      <p class="text-gray-500 text-center">Verifying...</p>
+    } @else if (verification?.isValid) {
+      <div class="text-center">
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span class="text-green-600 text-2xl">✓</span>
+        </div>
+        <p class="text-green-600 font-bold text-lg mb-4">Valid Certificate</p>
+        <div class="text-left space-y-2 border-t pt-4">
+          <p><span class="text-gray-500 text-sm">Student:</span> <span class="font-medium">{{ verification!.studentName }}</span></p>
+          <p><span class="text-gray-500 text-sm">Course:</span> <span class="font-medium">{{ verification!.courseTitle }}</span></p>
+          <p><span class="text-gray-500 text-sm">Certificate #:</span> <span class="font-medium">{{ verification!.certificateNumber }}</span></p>
+          <p><span class="text-gray-500 text-sm">Issued:</span> <span class="font-medium">{{ verification!.issuedAt | date:'longDate' }}</span></p>
+          <p><span class="text-gray-500 text-sm">Code:</span> <span class="font-mono text-sm">{{ verification!.verificationCode }}</span></p>
+        </div>
+      </div>
+    } @else {
+      <div class="text-center">
+        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span class="text-red-600 text-2xl">✗</span>
+        </div>
+        <p class="text-red-600 font-bold text-lg mb-2">Invalid Certificate</p>
+        <p class="text-gray-500 text-sm">{{ verification?.message || 'This verification code is not valid.' }}</p>
+      </div>
+    }
+  </div>
+</div>

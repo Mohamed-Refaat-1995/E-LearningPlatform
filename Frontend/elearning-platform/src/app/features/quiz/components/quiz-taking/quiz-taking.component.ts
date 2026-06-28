@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, interval } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { QuizService } from '@core/services/quiz.service';
+import { ToastService } from '@core/services/toast.service';
 import { Quiz, SubmitQuizRequest } from '@shared/models/quiz.model';
 
 @Component({
@@ -19,38 +20,35 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   quizForm!: FormGroup;
   loading = false;
   submitting = false;
-  error: string | null = null;
 
   timeRemaining = 0;
-  timeStarted = false;
-  quizId: string = '';
-
+  timeSpentSeconds = 0;
+  quizId = 0;
   currentQuestionIndex = 0;
 
   private destroy$ = new Subject<void>();
-  private timerInterval: any;
+  private startTime = 0;
 
   constructor(
     private quizService: QuizService,
     private formBuilder: FormBuilder,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private toast: ToastService
   ) {}
 
   ngOnInit(): void {
     this.route.params
       .pipe(takeUntil(this.destroy$))
       .subscribe(params => {
-        this.quizId = params['id'];
+        this.quizId = Number(params['quizId']);
         this.loadQuiz();
       });
   }
 
   loadQuiz(): void {
     this.loading = true;
-    this.error = null;
-
-    this.quizService.getQuiz(Number(this.quizId))
+    this.quizService.getQuiz(this.quizId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (quiz) => {
@@ -59,23 +57,23 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           this.startTimer();
           this.loading = false;
         },
-        error: (error) => {
-          this.error = 'Failed to load quiz. Please try again.';
+        error: () => {
+          this.toast.error('Failed to load quiz. You may not be enrolled or the quiz is not published.');
           this.loading = false;
         }
       });
   }
 
   initializeForm(): void {
-    if (!this.quiz) return;
+    if (!this.quiz?.questions) return;
 
-    const questionsArray = this.quiz.questions.map(question => {
-      return this.formBuilder.group({
+    const questionsArray = this.quiz.questions.map(question =>
+      this.formBuilder.group({
         questionId: [question.id],
-        selectedAnswerId: [''],
+        selectedAnswerId: [null],
         textAnswer: ['']
-      });
-    });
+      })
+    );
 
     this.quizForm = this.formBuilder.group({
       answers: this.formBuilder.array(questionsArray)
@@ -83,18 +81,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   }
 
   startTimer(): void {
-    if (!this.quiz || !this.quiz.timeLimit) return;
-
+    if (!this.quiz?.timeLimit) return;
+    this.startTime = Date.now();
     this.timeRemaining = this.quiz.timeLimit * 60;
-    this.timeStarted = true;
 
-    this.timerInterval = interval(1000)
+    interval(1000)
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
         this.timeRemaining--;
-        if (this.timeRemaining <= 0) {
-          this.submitQuiz();
-        }
+        this.timeSpentSeconds = Math.floor((Date.now() - this.startTime) / 1000);
+        if (this.timeRemaining <= 0) this.submitQuiz();
       });
   }
 
@@ -107,20 +103,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   }
 
   get currentQuestion() {
-    if (!this.quiz) return null;
-    return this.quiz.questions[this.currentQuestionIndex];
+    return this.quiz?.questions?.[this.currentQuestionIndex] ?? null;
   }
 
   nextQuestion(): void {
-    if (this.currentQuestionIndex < (this.quiz?.questions.length || 0) - 1) {
+    if (this.currentQuestionIndex < (this.quiz?.questions?.length || 0) - 1)
       this.currentQuestionIndex++;
-    }
   }
 
   previousQuestion(): void {
-    if (this.currentQuestionIndex > 0) {
-      this.currentQuestionIndex--;
-    }
+    if (this.currentQuestionIndex > 0) this.currentQuestionIndex--;
   }
 
   goToQuestion(index: number): void {
@@ -128,24 +120,29 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   }
 
   submitQuiz(): void {
-    if (this.submitting) return;
-
+    if (this.submitting || !this.quizForm) return;
     this.submitting = true;
-    this.error = null;
+    this.timeSpentSeconds = Math.floor((Date.now() - this.startTime) / 1000);
 
+    const rawAnswers = this.quizForm.get('answers')?.value || [];
     const submitRequest: SubmitQuizRequest = {
-      answers: this.quizForm.get('answers')?.value || []
+      answers: rawAnswers.map((a: any) => ({
+        questionId: a.questionId,
+        selectedAnswerId: a.selectedAnswerId ? Number(a.selectedAnswerId) : null,
+        textAnswer: a.textAnswer || null
+      })),
+      timeSpentSeconds: this.timeSpentSeconds
     };
 
-    this.quizService.submitQuiz(Number(this.quizId), submitRequest)
+    this.quizService.submitQuiz(this.quizId, submitRequest)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
           this.submitting = false;
-          this.router.navigate(['/quiz/result', response.result.id]);
+          this.router.navigate(['/quiz', this.quizId, 'result', response.id]);
         },
-        error: (error) => {
-          this.error = error.error?.message || 'Failed to submit quiz. Please try again.';
+        error: (err) => {
+          this.toast.error(err.error?.message || 'Failed to submit quiz.');
           this.submitting = false;
         }
       });
@@ -158,9 +155,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-    }
     this.destroy$.next();
     this.destroy$.complete();
   }

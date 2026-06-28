@@ -1,0 +1,38 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="bg-white shadow">
+    <div class="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-900">My Certificates</h1>
+      <a routerLink="/dashboard" class="text-indigo-600 text-sm hover:underline">← Back to Dashboard</a>
+    </div>
+  </div>
+
+  <div class="max-w-4xl mx-auto py-8 px-4">
+    @if (loading) {
+      <p class="text-gray-500 text-center">Loading certificates...</p>
+    } @else if (certificates.length === 0) {
+      <div class="bg-white rounded-lg shadow p-12 text-center">
+        <p class="text-gray-500 mb-2">No certificates yet.</p>
+        <p class="text-sm text-gray-400">Complete a course and pass its quiz to earn a certificate.</p>
+      </div>
+    } @else {
+      <div class="space-y-4">
+        @for (cert of certificates; track cert.id) {
+          <div class="bg-white rounded-lg shadow p-6 flex items-center justify-between">
+            <div>
+              <h2 class="font-bold text-gray-900">{{ cert.courseName || 'Course #' + cert.courseId }}</h2>
+              <p class="text-sm text-gray-500 mt-1">Issued {{ cert.issuedAt | date:'mediumDate' }}</p>
+              <p class="text-xs text-gray-400 mt-1">#{{ cert.certificateNumber }}</p>
+              @if (cert.verificationCode) {
+                <p class="text-xs text-gray-400">Verify: {{ cert.verificationCode }}</p>
+              }
+            </div>
+            <button (click)="download(cert)" [disabled]="downloadingId === cert.id"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50">
+              {{ downloadingId === cert.id ? 'Downloading...' : 'Download PDF' }}
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
