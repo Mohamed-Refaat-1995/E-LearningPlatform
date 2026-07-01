@@ -1,2 +1,8 @@
-<router-outlet></router-outlet>
+<div class="min-h-screen flex flex-col">
+  <app-header *ngIf="showLayout"></app-header>
+  <main class="flex-1">
+    <router-outlet></router-outlet>
+  </main>
+  <app-footer *ngIf="showLayout"></app-footer>
+</div>
 <app-toast></app-toast>

@@ -1,4 +1,3 @@
-using ELearningPlatform.Core.Entities;
 using ELearningPlatform.Core.Interfaces;
 
 namespace ELearningPlatform.Application.Services;
@@ -12,24 +11,28 @@ public class OrderService : IOrderService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Order> CreateOrderAsync(int userId, IEnumerable<int> courseIds)
+    public async Task<Order> CreateOrderAsync(int studentId, IEnumerable<int> courseIds)
     {
         var courseIdList = courseIds.Distinct().ToList();
         if (courseIdList.Count == 0)
+        {
             throw new InvalidOperationException("Order must contain at least one course.");
+        }
 
         var courses = (await _unitOfWork.Courses.FindAsync(c =>
             courseIdList.Contains(c.Id) && !c.IsDeleted && c.IsPublished
         )).ToList();
 
         if (courses.Count != courseIdList.Count)
+        {
             throw new InvalidOperationException("One or more courses are unavailable.");
+        }
 
         var order = new Order
         {
-            UserId = userId,
-            Status = "Pending",
-            Currency = "USD",
+            StudentId = studentId,
+            Status = OrderStatusEnum.Pending,
+            Currency = CurrencyEnum.EGP,
             TotalAmount = courses.Sum(c => c.Price),
             PlacedAt = DateTime.UtcNow,
             Items = courses.Select(c => new OrderItem
@@ -60,10 +63,10 @@ public class OrderService : IOrderService
         return order;
     }
 
-    public async Task<IEnumerable<Order>> GetUserOrdersAsync(int userId)
+    public async Task<IEnumerable<Order>> GetUserOrdersAsync(int studentId)
     {
         return await _unitOfWork.Orders.FindAsync(o =>
-            o.UserId == userId && !o.IsDeleted
+            o.StudentId == studentId && !o.IsDeleted
         );
     }
 
@@ -75,10 +78,17 @@ public class OrderService : IOrderService
     public async Task<bool> CancelOrderAsync(int orderId)
     {
         var order = await _unitOfWork.Orders.GetByIdAsync(orderId);
-        if (order == null) return false;
-        if (order.Status == "Paid") return false;
+        if (order == null)
+        {
+            return false;
+        }
 
-        order.Status = "Cancelled";
+        if (order.Status == OrderStatusEnum.Completed)
+        {
+            return false;
+        }
+
+        order.Status = OrderStatusEnum.Cancelled;
         order.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.Orders.Update(order);
         await _unitOfWork.SaveChangesAsync();

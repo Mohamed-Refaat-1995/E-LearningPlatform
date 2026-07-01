@@ -1,61 +1,19 @@
 <div class="min-h-screen bg-gray-50">
 
-  <!-- Navbar -->
-  <nav class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <a routerLink="/" class="text-2xl font-extrabold text-indigo-700 tracking-tight">eLearn</a>
-
-      <div class="flex items-center gap-4">
-        <a routerLink="/dashboard/certificates" class="text-sm text-indigo-600 hover:underline hidden sm:inline">Certificates</a>
-        <!-- Student Name -->
-        <span class="hidden sm:inline text-sm font-medium text-gray-700">
-          {{ studentName || 'Student' }}
-        </span>
-
-        <!-- Notifications -->
-        <div class="relative">
-          <button
-            (click)="toggleNotifications()"
-            class="relative p-2 rounded-full hover:bg-gray-100 transition text-gray-600"
-            title="Notifications"
-          >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-          </button>
-
-          <!-- Notifications Dropdown -->
-          <div
-            *ngIf="showNotifications"
-            class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
-          >
-            <div class="px-4 py-3 border-b border-gray-100">
-              <p class="text-sm font-semibold text-gray-900">Notifications</p>
-            </div>
-            <div class="px-4 py-6 text-center text-sm text-gray-500">
-              No new notifications
-            </div>
-          </div>
-        </div>
-
-        <!-- Logout -->
-        <button
-          (click)="logout()"
-          class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition"
-        >
-          Logout
-        </button>
-      </div>
-    </div>
-  </nav>
-
   <div class="max-w-7xl mx-auto py-8 px-4 space-y-8">
 
     <!-- Error -->
     <div *ngIf="error" class="p-4 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm">
       {{ error }}
     </div>
+
+    <!-- Refund Success -->
+    @if (refundSuccess) {
+      <div class="p-4 bg-green-100 border border-green-300 text-green-800 rounded-lg text-sm flex items-center justify-between">
+        <span>✓ {{ refundSuccess }}</span>
+        <button (click)="refundSuccess = null" class="text-green-600 hover:text-green-800">✕</button>
+      </div>
+    }
 
     <!-- Loading -->
     <div *ngIf="loading" class="flex flex-col items-center justify-center py-20">
@@ -114,16 +72,69 @@
                 Enrolled {{ enrollment.enrolledAt | date: 'mediumDate' }}
               </p>
 
-              <button
-                (click)="continueCourse(enrollment.courseId)"
-                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition"
-              >
-                Continue Learning
-              </button>
+              @if (enrollment.isRefunded) {
+                <div class="w-full text-center py-2 text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                  Refunded
+                </div>
+              } @else {
+                <button
+                  (click)="continueCourse(enrollment.courseId)"
+                  class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition mb-2"
+                >
+                  Continue Learning
+                </button>
+                <button
+                  (click)="openRefundModal(enrollment)"
+                  class="w-full text-red-500 hover:text-red-700 text-xs font-medium py-1 transition"
+                >
+                  Request Refund
+                </button>
+              }
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Refund Modal -->
+      @if (showRefundModal && pendingRefundEnrollmentId !== null) {
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-2">Request Refund</h2>
+
+            @if (refundEligibility[pendingRefundEnrollmentId]) {
+              @if (refundEligibility[pendingRefundEnrollmentId].isEligible) {
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 text-sm text-green-800">
+                  ✓ Eligible for refund. Deadline: {{ refundEligibility[pendingRefundEnrollmentId].refundDeadline | date:'MMM d, y' }}
+                </div>
+              } @else {
+                <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800">
+                  ✕ {{ refundEligibility[pendingRefundEnrollmentId].isAlreadyRefunded ? 'Already refunded.' : 'Refund period has expired.' }}
+                </div>
+              }
+            }
+
+            @if (refundError) {
+              <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800">{{ refundError }}</div>
+            }
+
+            <p class="text-sm text-gray-600 mb-3">Please provide a reason for your refund request (optional):</p>
+            <textarea [(ngModel)]="refundReason" rows="3" placeholder="e.g., Course didn't meet my expectations..."
+                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-400 outline-none resize-none mb-4"></textarea>
+
+            <div class="flex gap-3 justify-end">
+              <button (click)="closeRefundModal()"
+                      class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+                Cancel
+              </button>
+              <button (click)="submitRefund()"
+                      [disabled]="refundingEnrollmentId !== null || !refundEligibility[pendingRefundEnrollmentId]?.isEligible"
+                      class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition">
+                {{ refundingEnrollmentId !== null ? 'Processing...' : 'Confirm Refund' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
 
       <!-- No enrollments notice -->
       <div *ngIf="enrolledCourses.length === 0" class="bg-white rounded-xl border border-dashed border-indigo-300 p-8 text-center">
@@ -133,6 +144,25 @@
         </svg>
         <p class="text-gray-600 font-medium mb-1">You haven't enrolled in any courses yet</p>
         <p class="text-gray-400 text-sm mb-4">Browse the courses below and start learning today</p>
+      </div>
+
+      <!-- Study Timer Quick Link -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+            <svg class="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p class="font-semibold text-gray-800">Study Timer</p>
+            <p class="text-sm text-gray-500">Use Pomodoro technique to stay focused</p>
+          </div>
+        </div>
+        <a routerLink="/dashboard/study-timer"
+          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition">
+          Start Timer
+        </a>
       </div>
 
       <!-- Recommended Courses -->

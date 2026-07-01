@@ -1,10 +1,8 @@
-using ELearningPlatform.Core.Entities;
-
 namespace ELearningPlatform.Core.Interfaces;
 
 public interface ICouponService
 {
-    Task<Coupon> CreateCouponAsync(string code, string discountType, decimal discountValue,
+    Task<Coupon> CreateCouponAsync(string code, DiscountTypeEnum discountType, decimal discountValue,
         decimal? maxDiscountAmount, int? maxUses, DateTime? expiryDate, int instructorId, int? courseId);
     Task<IEnumerable<Coupon>> GetInstructorCouponsAsync(int instructorId);
     Task<Coupon?> GetCouponByCodeAsync(string code);

@@ -14,6 +14,7 @@ interface AdminUser {
   role: number;
   isActive: boolean;
   createdAt: Date;
+  lastLoginAt?: Date | string | null;
   userType?: 'students' | 'instructors';
 }
 
@@ -31,6 +32,7 @@ export class UserManagementComponent implements OnInit, OnDestroy {
   error: string | null = null;
   search = '';
   roleFilter: 'all' | 'student' | 'instructor' = 'all';
+  statusFilter: 'all' | 'active' | 'disabled' = 'all';
 
   private destroy$ = new Subject<void>();
 
@@ -73,8 +75,37 @@ export class UserManagementComponent implements OnInit, OnDestroy {
       const matchesRole = this.roleFilter === 'all' ||
         (this.roleFilter === 'student' && u.userType === 'students') ||
         (this.roleFilter === 'instructor' && u.userType === 'instructors');
-      return matchesSearch && matchesRole;
+      const matchesStatus = this.statusFilter === 'all' ||
+        (this.statusFilter === 'active' && u.isActive) ||
+        (this.statusFilter === 'disabled' && !u.isActive);
+      return matchesSearch && matchesRole && matchesStatus;
     });
+  }
+
+  /** Human-friendly relative time for last activity (e.g. "3h ago"). */
+  lastActivity(user: AdminUser): string {
+    if (!user.lastLoginAt) return 'Never';
+    const then = new Date(user.lastLoginAt).getTime();
+    if (isNaN(then)) return 'Never';
+    const diffMs = Date.now() - then;
+    const min = Math.floor(diffMs / 60000);
+    if (min < 1) return 'Just now';
+    if (min < 60) return `${min}m ago`;
+    const hours = Math.floor(min / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    return `${Math.floor(months / 12)}y ago`;
+  }
+
+  /** True if the user was active within the last 7 days. */
+  isRecentlyActive(user: AdminUser): boolean {
+    if (!user.lastLoginAt) return false;
+    const then = new Date(user.lastLoginAt).getTime();
+    if (isNaN(then)) return false;
+    return Date.now() - then < 7 * 24 * 60 * 60 * 1000;
   }
 
   toggleActive(user: AdminUser): void {

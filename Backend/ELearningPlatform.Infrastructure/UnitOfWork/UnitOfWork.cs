@@ -1,4 +1,4 @@
-using ELearningPlatform.Core.Entities;
+using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
 using ELearningPlatform.Infrastructure.DbContext;
 using ELearningPlatform.Infrastructure.Repositories;
@@ -11,9 +11,9 @@ public class UnitOfWork : IUnitOfWork
 
     public IRepository<User> Users { get; }
     public IRepository<Course> Courses { get; }
+    public IRepository<Category> Categories { get; }
     public IRepository<Section> Sections { get; }
     public IRepository<Lesson> Lessons { get; }
-    public IRepository<LessonContent> LessonContents { get; }
     public IRepository<Enrollment> Enrollments { get; }
     public IRepository<LessonProgress> LessonProgresses { get; }
     public IRepository<Quiz> Quizzes { get; }
@@ -28,6 +28,8 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<Order> Orders { get; }
     public IRepository<OrderItem> OrderItems { get; }
     public IRepository<Coupon> Coupons { get; }
+    public IRepository<UserSession> UserSessions { get; }
+    // ActivityLog, AdminPlatformSettings, AdminProfitShare and AdminNotification removed
 
     public UnitOfWork(AppDbContext dbContext)
     {
@@ -35,9 +37,9 @@ public class UnitOfWork : IUnitOfWork
 
         Users = new Repository<User>(_dbContext);
         Courses = new Repository<Course>(_dbContext);
+        Categories = new Repository<Category>(_dbContext);
         Sections = new Repository<Section>(_dbContext);
         Lessons = new Repository<Lesson>(_dbContext);
-        LessonContents = new Repository<LessonContent>(_dbContext);
         Enrollments = new Repository<Enrollment>(_dbContext);
         LessonProgresses = new Repository<LessonProgress>(_dbContext);
         Quizzes = new Repository<Quiz>(_dbContext);
@@ -52,6 +54,7 @@ public class UnitOfWork : IUnitOfWork
         Orders = new Repository<Order>(_dbContext);
         OrderItems = new Repository<OrderItem>(_dbContext);
         Coupons = new Repository<Coupon>(_dbContext);
+        UserSessions = new Repository<UserSession>(_dbContext);
     }
 
     public async Task SaveChangesAsync()

@@ -1,0 +1,38 @@
+<div class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-800">Platform Settings</h1>
+    <p class="text-gray-500 text-sm mt-1">Configure global platform behavior</p>
+  </div>
+
+  @if (loading) {
+    <div class="bg-white rounded-xl shadow-sm p-8 text-center text-gray-500">Loading settings...</div>
+  } @else {
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      @for (setting of settings; track setting.key) {
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-2xl">{{ getSettingIcon(setting.key) }}</span>
+            <h3 class="font-semibold text-gray-800">{{ getSettingLabel(setting.key) }}</h3>
+          </div>
+          @if (setting.description) {
+            <p class="text-sm text-gray-500 mb-4">{{ setting.description }}</p>
+          }
+          <div class="flex items-center gap-3 mt-3">
+            <input [(ngModel)]="editValues[setting.key]" type="number" min="0"
+                   class="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <button (click)="saveSetting(setting.key)" [disabled]="saving[setting.key]"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors">
+              {{ saving[setting.key] ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+          @if (messages[setting.key]?.text) {
+            <p [class]="messages[setting.key].type === 'success' ? 'text-green-600' : 'text-red-600'"
+               class="text-sm mt-2 font-medium">
+              {{ messages[setting.key].text }}
+            </p>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

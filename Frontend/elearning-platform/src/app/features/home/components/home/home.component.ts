@@ -5,13 +5,12 @@ import { AuthService } from '@core/services/auth.service';
 import { CourseService } from '@core/services/course.service';
 import { Course } from '@shared/models/course.model';
 import { User } from '@shared/models/user.model';
-import { HeaderComponent } from '@shared/components/header/header.component';
 import { CourseRowComponent } from '@shared/components/course-row/course-row.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, HeaderComponent, CourseRowComponent],
+  imports: [CommonModule, RouterModule, CourseRowComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss'
 })

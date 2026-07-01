@@ -6,6 +6,6 @@ public class CreateCourseRequest
     public string Description { get; set; } = string.Empty;
     public string? ThumbnailUrl { get; set; }
     public decimal Price { get; set; }
-    public string Category { get; set; } = string.Empty;
-    public string Level { get; set; } = "Beginner";
+    public int CategoryId { get; set; }
+    public CourseLevelEnum Level { get; set; } = CourseLevelEnum.Beginner;
 }

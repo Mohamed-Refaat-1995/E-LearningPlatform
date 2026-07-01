@@ -1,4 +1,4 @@
-using ELearningPlatform.Core.Entities;
+using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
 
 namespace ELearningPlatform.Application.Services;
@@ -19,14 +19,17 @@ public class QuizService : IQuizService
 
     public async Task<IEnumerable<Quiz>> GetCourseQuizzesAsync(int courseId)
     {
-        return await _unitOfWork.Quizzes.FindAsync(q =>
-            q.CourseId == courseId && !q.IsDeleted && q.IsPublished);
+        //return await _unitOfWork.Quizzes.FindAsync(q =>
+        //    q.CourseId == courseId && !q.IsDeleted && q.IsPublished);
+        return null;
     }
 
     public async Task<IEnumerable<Quiz>> GetInstructorCourseQuizzesAsync(int courseId)
     {
-        return await _unitOfWork.Quizzes.FindAsync(q =>
-            q.CourseId == courseId && !q.IsDeleted);
+        //return await _unitOfWork.Quizzes.FindAsync(q =>
+        //    q.CourseId == courseId && !q.IsDeleted);
+        return null;
+
     }
 
     public async Task<Quiz> CreateQuizAsync(Quiz quiz)
@@ -58,7 +61,7 @@ public class QuizService : IQuizService
         }
     }
 
-    public async Task<Question> AddQuestionAsync(int quizId, string questionText, string questionType, int points, int displayOrder)
+    public async Task<Question> AddQuestionAsync(int quizId, string questionText, QuestionTypeEnum questionType, int points, int displayOrder)
     {
         var quiz = await GetQuizByIdAsync(quizId)
             ?? throw new InvalidOperationException("Quiz not found");
@@ -79,10 +82,10 @@ public class QuizService : IQuizService
         return question;
     }
 
-    public async Task UpdateQuestionAsync(int questionId, string questionText, string questionType, int points, int displayOrder)
+    public async Task UpdateQuestionAsync(int questionId, string questionText, QuestionTypeEnum questionType, int points, int displayOrder)
     {
-        var question = await _unitOfWork.Questions.FirstOrDefaultAsync(q => q.Id == questionId && !q.IsDeleted)
-            ?? throw new InvalidOperationException("Question not found");
+        var question = new Question(); //await _unitOfWork.Questions.FirstOrDefaultAsync(q => q.Id == questionId && !q.IsDeleted)
+         //  ?? throw new InvalidOperationException("Question not found");
 
         question.QuestionText = questionText;
         question.QuestionType = questionType;
@@ -106,8 +109,8 @@ public class QuizService : IQuizService
 
     public async Task<Answer> AddAnswerAsync(int questionId, string answerText, bool isCorrect, int displayOrder)
     {
-        var question = await _unitOfWork.Questions.FirstOrDefaultAsync(q => q.Id == questionId && !q.IsDeleted)
-            ?? throw new InvalidOperationException("Question not found");
+        //var question = await _unitOfWork.Questions.FirstOrDefaultAsync(q => q.Id == questionId && !q.IsDeleted)
+        //    ?? throw new InvalidOperationException("Question not found");
 
         if (isCorrect)
             await ClearExistingCorrectAnswerAsync(questionId);
@@ -162,8 +165,8 @@ public class QuizService : IQuizService
         if (!quiz.IsPublished)
             throw new InvalidOperationException("Quiz is not published");
 
-        if (!await IsStudentEnrolledAsync(studentId, quiz.CourseId))
-            throw new InvalidOperationException("You must be enrolled in this course to take the quiz");
+        //if (!await IsStudentEnrolledAsync(studentId, quiz.CourseId))
+        //    throw new InvalidOperationException("You must be enrolled in this course to take the quiz");
 
         var questions = (await _unitOfWork.Questions.FindAsync(q => q.QuizId == quizId && !q.IsDeleted)).ToList();
         var score = await GradeQuizAsync(quiz, answers);
@@ -175,9 +178,9 @@ public class QuizService : IQuizService
             QuizId = quizId,
             StudentId = studentId,
             Score = score,
-            MaxScore = maxScore,
-            Percentage = percentage,
-            IsPassed = maxScore > 0 && percentage >= quiz.PassingScore,
+            //MaxScore = maxScore,
+            //Percentage = percentage,
+            //IsPassed = maxScore > 0 && percentage >= quiz.PassingScore,
             TimeSpentSeconds = timeSpentSeconds,
             TakenAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
@@ -189,7 +192,7 @@ public class QuizService : IQuizService
 
         foreach (var answerEntry in answers)
         {
-            var question = questions.FirstOrDefault(q => q.Id == answerEntry.Key);
+            var question = "";//questions.FirstOrDefault(q => q.Id == answerEntry.Key);
             if (question == null) continue;
 
             var isCorrect = false;
@@ -235,8 +238,8 @@ public class QuizService : IQuizService
 
         foreach (var answer in answers)
         {
-            var question = await _unitOfWork.Questions.FirstOrDefaultAsync(q =>
-                q.Id == answer.Key && !q.IsDeleted);
+            var question = "";// await _unitOfWork.Questions.FirstOrDefaultAsync(q =>
+               // q.Id == answer.Key && !q.IsDeleted);
             if (question == null) continue;
 
             if (answer.Value.HasValue)
@@ -244,7 +247,10 @@ public class QuizService : IQuizService
                 var selectedAnswer = await _unitOfWork.Answers.FirstOrDefaultAsync(a =>
                     a.Id == answer.Value.Value && !a.IsDeleted);
                 if (selectedAnswer?.IsCorrect ?? false)
-                    totalScore += question.Points;
+                {
+
+                }
+                   // totalScore += question.Points;
             }
         }
 

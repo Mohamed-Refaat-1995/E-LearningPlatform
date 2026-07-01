@@ -1,6 +1,3 @@
-using ELearningPlatform.Core.Entities;
-using ELearningPlatform.Core.Enums;
-
 namespace ELearningPlatform.Core.Interfaces;
 
 public interface IUserService
@@ -12,8 +9,8 @@ public interface IUserService
     Task<IEnumerable<Course>> GetRecommendedCoursesAsync(int userId);
     Task<decimal> GetStudentProgressAsync(int studentId);
 
-    Task<IEnumerable<User>> GetUsersByRoleAsync(UserRole role);
-    Task<User> AdminCreateUserAsync(string firstName, string lastName, string email, string password, UserRole role, string? bio = null);
+    Task<IEnumerable<User>> GetUsersByRoleAsync(UserRoleEnum role);
+    Task<User> AdminCreateUserAsync(string firstName, string lastName, string email, string password, UserRoleEnum role, string? bio = null);
     Task<bool> SetActiveAsync(int userId, bool isActive);
     Task<bool> SoftDeleteAsync(int userId);
 }

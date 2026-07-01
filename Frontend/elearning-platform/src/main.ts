@@ -6,6 +6,7 @@ import { APP_INITIALIZER } from '@angular/core';
 import { AppComponent } from './app/app.component';
 import { appRoutes } from './app/app.routes';
 import { AuthInterceptor } from './app/core/interceptors/auth.interceptor';
+import { ResponseUnwrapInterceptor } from './app/core/interceptors/response-unwrap.interceptor';
 import { ConfigService } from './app/core/services/config.service';
 
 bootstrapApplication(AppComponent, {
@@ -16,6 +17,11 @@ bootstrapApplication(AppComponent, {
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,
+      multi: true
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: ResponseUnwrapInterceptor,
       multi: true
     },
     {

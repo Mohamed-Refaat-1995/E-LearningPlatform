@@ -1,5 +1,4 @@
-using ELearningPlatform.Core.Entities;
-using ELearningPlatform.Core.Enums;
+using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
 
 namespace ELearningPlatform.Application.Services;
@@ -76,9 +75,10 @@ public class UserService : IUserService
             !c.IsDeleted && c.IsPublished && !enrolledCourseIds.Contains(c.Id)
         );
 
-        return allCourses
-            .OrderByDescending(c => c.AverageRating)
-            .Take(5);
+        //return allCourses
+        //    .OrderByDescending(c => c.AverageRating)
+        //    .Take(5);
+        return null;
     }
 
     public async Task<decimal> GetStudentProgressAsync(int studentId)
@@ -93,12 +93,12 @@ public class UserService : IUserService
         return Math.Round(totalProgress / enrollments.Count(), 2);
     }
 
-    public async Task<IEnumerable<User>> GetUsersByRoleAsync(UserRole role)
+    public async Task<IEnumerable<User>> GetUsersByRoleAsync(UserRoleEnum role)
     {
         return await _unitOfWork.Users.FindAsync(u => u.Role == role && !u.IsDeleted);
     }
 
-    public async Task<User> AdminCreateUserAsync(string firstName, string lastName, string email, string password, UserRole role, string? bio = null)
+    public async Task<User> AdminCreateUserAsync(string firstName, string lastName, string email, string password, UserRoleEnum role, string? bio = null)
     {
         var existing = await GetUserByEmailAsync(email);
         if (existing != null)
@@ -106,9 +106,9 @@ public class UserService : IUserService
 
         User user = role switch
         {
-            UserRole.Admin => new Admin(),
-            UserRole.Instructor => new Instructor(),
-            UserRole.Student => new Student(),
+            UserRoleEnum.Admin => new Admin(),
+            UserRoleEnum.Instructor => new Instructor(),
+            UserRoleEnum.Student => new Student(),
             _ => throw new ArgumentOutOfRangeException(nameof(role))
         };
 

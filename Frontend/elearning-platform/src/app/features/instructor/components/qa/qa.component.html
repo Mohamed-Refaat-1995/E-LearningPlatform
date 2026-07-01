@@ -1,24 +1,14 @@
-<div class="min-h-screen bg-slate-50">
+<div class="bg-slate-50">
 
-  <!-- Top Bar -->
-  <header class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-      <a routerLink="/instructor"
-        class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition flex-shrink-0">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
-      </a>
-      <div class="flex-1 min-w-0">
-        <h1 class="text-sm font-extrabold text-gray-900 truncate">
-          Student Q&amp;A &amp; Reviews
-          @if (course) { <span class="font-normal text-gray-400">— {{ course.title }}</span> }
-        </h1>
-      </div>
-    </div>
-  </header>
+  <!-- Page Title -->
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-2">
+    <h1 class="text-xl font-extrabold text-gray-900">
+      Student Q&amp;A &amp; Reviews
+      @if (course) { <span class="font-normal text-gray-400 text-base">— {{ course.title }}</span> }
+    </h1>
+  </div>
 
-  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
     <!-- Loading -->
     @if (loading) {

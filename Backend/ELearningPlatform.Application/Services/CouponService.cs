@@ -1,4 +1,4 @@
-using ELearningPlatform.Core.Entities;
+using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
 
 namespace ELearningPlatform.Application.Services;
@@ -12,7 +12,7 @@ public class CouponService : ICouponService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Coupon> CreateCouponAsync(string code, string discountType, decimal discountValue,
+    public async Task<Coupon> CreateCouponAsync(string code, DiscountTypeEnum discountType, decimal discountValue,
         decimal? maxDiscountAmount, int? maxUses, DateTime? expiryDate, int instructorId, int? courseId)
     {
         var existing = await _unitOfWork.Coupons.FirstOrDefaultAsync(c => c.Code == code && !c.IsDeleted);
@@ -93,7 +93,7 @@ public class CouponService : ICouponService
         if (coupon.CourseId.HasValue && coupon.CourseId.Value != courseId)
             return new CouponValidationResult(false, "Coupon is not valid for this course.", 0, originalPrice);
 
-        decimal discount = coupon.DiscountType == "Percentage"
+        decimal discount = coupon.DiscountType == DiscountTypeEnum.Percentage
             ? originalPrice * (coupon.DiscountValue / 100m)
             : coupon.DiscountValue;
 

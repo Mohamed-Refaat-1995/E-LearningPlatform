@@ -1,1 +1,11 @@
-:host { display: block; }
+// Header styling is done with Tailwind utility classes in the template,
+// matching the footer's dark palette (bg-gray-900 / #111827).
+:host {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+a{
+  text-decoration: none;
+}

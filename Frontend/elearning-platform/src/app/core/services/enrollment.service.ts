@@ -32,4 +32,16 @@ export class EnrollmentService {
   getStudentProgress(): Observable<StudentProgress> {
     return this.http.get<StudentProgress>(`${this.API_URL}/progress`);
   }
+
+  checkRefundEligibility(enrollmentId: number): Observable<any> {
+    return this.http.get(`${this.API_URL}/${enrollmentId}/refund-eligibility`);
+  }
+
+  requestRefund(enrollmentId: number, reason?: string): Observable<any> {
+    return this.http.post(`${this.API_URL}/${enrollmentId}/refund`, { reason: reason || null });
+  }
+
+  getCoursePriceBreakdown(courseId: number): Observable<any> {
+    return this.http.get(`${this.API_URL}/courses/${courseId}/price-breakdown`);
+  }
 }

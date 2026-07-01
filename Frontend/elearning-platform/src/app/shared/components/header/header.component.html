@@ -1,44 +1,204 @@
-<header class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-  <div class="max-w-7xl mx-auto flex items-center gap-4 px-4 py-3">
-    <a routerLink="/" class="text-2xl font-extrabold text-indigo-700 tracking-tight">eLearn</a>
+<nav class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 transition-colors duration-300">
+  <div class="w-full pl-4 pr-4 sm:pr-6 lg:pr-8">
+    <div class="flex items-center gap-6 h-20">
 
-    <a routerLink="/courses" class="hidden md:inline text-sm text-gray-700 hover:text-indigo-700">Explore</a>
+      <!-- ── BRAND (icon + label) ── -->
+      <a routerLink="/" class="flex items-center gap-3 group flex-shrink-0" (click)="closeMobileMenu()">
+        <div class="w-12 h-11 bg-gradient-to-br from-indigo-500 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-indigo-500/30 transition-all duration-300">
+          <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+        </div>
+        <div class="leading-tight">
+          <span class="block text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">U.Learn</span>
+          <span class="hidden sm:block text-xs text-indigo-500 dark:text-indigo-400 font-medium">Learn without limits</span>
+        </div>
+      </a>
 
-    <form class="flex-1 max-w-2xl" (submit)="onSearch($event)">
-      <div class="relative">
-        <input
-          type="search"
-          [(ngModel)]="searchTerm"
-          name="searchTerm"
-          placeholder="Search for anything"
-          class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-        <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M9 3a6 6 0 104.47 10.03l3.25 3.25a1 1 0 001.41-1.41l-3.25-3.25A6 6 0 009 3zm0 2a4 4 0 110 8 4 4 0 010-8z" clip-rule="evenodd" />
-        </svg>
+      <!-- ── SEARCH BOX ── -->
+      <form class="flex-1 max-w-5xl hidden md:flex" role="search" (submit)="$event.preventDefault()">
+        <div class="relative w-full">
+          <svg class="w-10 h-5 text-gray-400 dark:text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input type="search" name="search" placeholder="Search for courses..."
+            class="w-full pl-11 pr-4 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"/>
+        </div>
+      </form>
+
+      <!-- ── NAV LINKS ── -->
+      <div class="hidden lg:flex items-center gap-6 flex-shrink-0 ml-auto">
+        @if (isAdmin) {
+          <!-- ── ADMIN navigation ── -->
+          <a routerLink="/admin/users" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Users</a>
+          <a routerLink="/admin/courses" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Courses</a>
+          <a routerLink="/admin/enrollments" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Enrollments</a>
+          <a routerLink="/admin/payments" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Payments</a>
+          <a routerLink="/admin/settings" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Settings</a>
+          <a routerLink="/admin/notifications" title="Notifications"
+            class="relative text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+          </a>
+          <app-theme-toggle></app-theme-toggle>
+          <button (click)="logout()"
+            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all duration-200">Log Out</button>
+
+        } @else if (isInstructor) {
+          <!-- ── INSTRUCTOR navigation ── -->
+          <a routerLink="/instructor" routerLinkActive="text-gray-900 dark:text-white" [routerLinkActiveOptions]="{ exact: true }"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">My Courses</a>
+          <a routerLink="/instructor/students" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Students</a>
+          <a routerLink="/instructor/earnings" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Revenue</a>
+          <a routerLink="/instructor/reviews" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Reviews</a>
+          <a routerLink="/instructor/create-course"
+            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all duration-200">Create New Course</a>
+          <a routerLink="/instructor/notifications" title="Notifications"
+            class="relative text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+          </a>
+          <a routerLink="/profile" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Settings</a>
+          <app-theme-toggle></app-theme-toggle>
+          <button (click)="logout()"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Log Out</button>
+
+        } @else if (isStudent) {
+          <!-- ── STUDENT navigation ── -->
+          <div class="relative">
+            <button (click)="toggleCategoriesMenu($event)"
+              class="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+              Categories
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            @if (showCategoriesMenu) {
+              <div class="absolute left-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-2 z-50">
+                @for (cat of categories; track cat) {
+                  <a [routerLink]="['/courses']" [queryParams]="{ category: cat }" (click)="closeCategoriesMenu()"
+                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{{ cat }}</a>
+                }
+              </div>
+            }
+          </div>
+          <a routerLink="/dashboard" routerLinkActive="text-gray-900 dark:text-white" [routerLinkActiveOptions]="{ exact: true }"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">My Learning</a>
+          <a routerLink="/dashboard/wishlist" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Wish List</a>
+          <a routerLink="/dashboard/certificates" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">My Certificates</a>
+          <a routerLink="/dashboard/notifications" title="Notifications"
+            class="relative text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+          </a>
+          <a routerLink="/profile" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Settings</a>
+          <app-theme-toggle></app-theme-toggle>
+          <button (click)="logout()"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Log Out</button>
+
+        } @else {
+          <!-- ── GUEST navigation ── -->
+          <div class="relative">
+            <button (click)="toggleCategoriesMenu($event)"
+              class="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+              Categories
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            @if (showCategoriesMenu) {
+              <div class="absolute left-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-2 z-50">
+                @for (cat of categories; track cat) {
+                  <a [routerLink]="['/courses']" [queryParams]="{ category: cat }" (click)="closeCategoriesMenu()"
+                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{{ cat }}</a>
+                }
+              </div>
+            }
+          </div>
+          <a routerLink="/courses" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Browse Courses</a>
+          <a routerLink="/instructors" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Instructors</a>
+          <a routerLink="/verify-certificate" routerLinkActive="text-gray-900 dark:text-white"
+            class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Validate a Certificate</a>
+          <app-theme-toggle></app-theme-toggle>
+          <a routerLink="/auth/login"
+            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all duration-200">Log in</a>
+        }
       </div>
-    </form>
 
-    <a *ngIf="user?.role === 2" routerLink="/instructor" class="hidden md:inline text-sm text-gray-700 hover:text-indigo-700">Teach</a>
-    <a *ngIf="isAuthed" routerLink="/dashboard" class="hidden md:inline text-sm text-gray-700 hover:text-indigo-700">My learning</a>
-
-    <ng-container *ngIf="isAuthed; else guest">
-      <div class="flex items-center gap-2">
-        <span class="hidden sm:inline text-sm text-gray-700">{{ user?.email }}</span>
-        <button (click)="logout()" class="text-sm text-indigo-700 hover:underline">Logout</button>
+      <!-- ── MOBILE ACTIONS (toggle + menu) ── -->
+      <div class="lg:hidden ml-auto flex items-center gap-1">
+        <app-theme-toggle></app-theme-toggle>
+        <button (click)="toggleMobileMenu()"
+          class="w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
       </div>
-    </ng-container>
+    </div>
 
-    <ng-template #guest>
-      <div class="flex items-center gap-2">
-        <a routerLink="/auth/login"
-           class="px-3 py-1.5 border border-gray-800 text-sm font-semibold text-gray-900 hover:bg-gray-50">
-          Log in
-        </a>
-        <a routerLink="/auth/register"
-           class="px-3 py-1.5 bg-gray-900 text-sm font-semibold text-white hover:bg-black">
-          Sign up
-        </a>
+    <!-- ── MOBILE MENU ── -->
+    @if (showMobileMenu) {
+      <div class="lg:hidden pb-4 space-y-3">
+        <form class="flex md:hidden" role="search" (submit)="$event.preventDefault()">
+          <input type="search" name="searchMobile" placeholder="Search for courses..."
+            class="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"/>
+        </form>
+        @if (isAdmin) {
+          <a routerLink="/admin/users" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Users</a>
+          <a routerLink="/admin/courses" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Courses</a>
+          <a routerLink="/admin/enrollments" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Enrollments</a>
+          <a routerLink="/admin/payments" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Payments</a>
+          <a routerLink="/admin/settings" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Settings</a>
+          <a routerLink="/admin/notifications" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Notifications</a>
+          <button (click)="logout()" class="block w-full text-left py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Log Out</button>
+
+        } @else if (isInstructor) {
+          <a routerLink="/instructor" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">My Courses</a>
+          <a routerLink="/instructor/students" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Students</a>
+          <a routerLink="/instructor/earnings" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Revenue</a>
+          <a routerLink="/instructor/reviews" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Reviews</a>
+          <a routerLink="/instructor/create-course" class="block py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">Create New Course</a>
+          <a routerLink="/instructor/notifications" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Notifications</a>
+          <a routerLink="/profile" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Settings</a>
+          <button (click)="logout()" class="block w-full text-left py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Log Out</button>
+
+        } @else if (isStudent) {
+          <a routerLink="/courses" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Categories</a>
+          <a routerLink="/dashboard" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">My Learning</a>
+          <a routerLink="/dashboard/wishlist" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Wish List</a>
+          <a routerLink="/dashboard/certificates" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">My Certificates</a>
+          <a routerLink="/dashboard/notifications" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Notifications</a>
+          <a routerLink="/profile" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Settings</a>
+          <button (click)="logout()" class="block w-full text-left py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Log Out</button>
+
+        } @else {
+          <a routerLink="/courses" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Categories</a>
+          <a routerLink="/courses" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Browse Courses</a>
+          <a routerLink="/instructors" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Instructors</a>
+          <a routerLink="/verify-certificate" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">Validate a Certificate</a>
+          <a routerLink="/auth/login" class="block py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">Log in</a>
+        }
       </div>
-    </ng-template>
+    }
   </div>
-</header>
+</nav>

@@ -1,4 +1,6 @@
-using ELearningPlatform.Application.Services;
+﻿using ELearningPlatform.Application.Services;
+using ELearningPlatform.Core.Interfaces;
+using ELearningPlatform.API.Middleware;
 using ELearningPlatform.Infrastructure.Cloudinary;
 using ELearningPlatform.Infrastructure.DbContext;
 using ELearningPlatform.Infrastructure.UnitOfWork;
@@ -9,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using ELearningPlatform.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +21,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -85,6 +89,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
+
+        // Reject tokens whose session has been terminated (logout / "sign out everywhere").
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var sessionId = context.Principal?.FindFirst("sessionId")?.Value;
+                if (!string.IsNullOrEmpty(sessionId))
+                {
+                    var sessionService = context.HttpContext.RequestServices.GetRequiredService<ISessionService>();
+                    if (!await sessionService.IsSessionActiveAsync(sessionId))
+                    {
+                        context.Fail("Session has been terminated.");
+                    }
+                }
+            }
+        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -96,6 +117,7 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
@@ -105,6 +127,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
+builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<IRefundService, RefundService>();
 
 builder.Services.AddScoped<ICloudinaryVideoService, CloudinaryVideoService>();
 
@@ -113,6 +137,12 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddMemoryCache();
 
 var app = builder.Build();
+
+// Exception file logging must be first to catch everything
+app.UseExceptionFileLogging();
+
+// Log every request/action to a daily file (path configured in appsettings "FileLogging").
+app.UseRequestFileLogging();
 
 app.UseSwagger();
 app.UseSwaggerUI();

@@ -13,6 +13,7 @@
         <div class="text-left space-y-2 border-t pt-4">
           <p><span class="text-gray-500 text-sm">Student:</span> <span class="font-medium">{{ verification!.studentName }}</span></p>
           <p><span class="text-gray-500 text-sm">Course:</span> <span class="font-medium">{{ verification!.courseTitle }}</span></p>
+          <p *ngIf="verification!.instructorName"><span class="text-gray-500 text-sm">Instructor:</span> <span class="font-medium">{{ verification!.instructorName }}</span></p>
           <p><span class="text-gray-500 text-sm">Certificate #:</span> <span class="font-medium">{{ verification!.certificateNumber }}</span></p>
           <p><span class="text-gray-500 text-sm">Issued:</span> <span class="font-medium">{{ verification!.issuedAt | date:'longDate' }}</span></p>
           <p><span class="text-gray-500 text-sm">Code:</span> <span class="font-mono text-sm">{{ verification!.verificationCode }}</span></p>

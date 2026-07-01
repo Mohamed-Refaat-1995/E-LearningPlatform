@@ -1,8 +1,16 @@
 namespace ELearningPlatform.Application.DTOs.Orders;
 
-public record CreateOrderRequestDto(IEnumerable<int> CourseIds);
+public class CreateOrderRequestDto
+{
+    public IEnumerable<int> CourseIds { get; set; } = new List<int>();
+}
 
-public record CreatePaymentRequestDto(int OrderId, decimal Amount, string PaymentMethod);
+public class CreatePaymentRequestDto
+{
+    public int OrderId { get; set; }
+    public decimal Amount { get; set; }
+    public PaymentMethodEnum PaymentMethod { get; set; }
+}
 
 public class ProcessPaymentRequestDto
 {
@@ -11,4 +19,7 @@ public class ProcessPaymentRequestDto
     public string GetTransactionNo() => TransactionNo ?? StripePaymentIntentId ?? string.Empty;
 }
 
-public record EnrollmentRequestDto(int CourseId);
+public class EnrollmentRequestDto
+{
+    public int CourseId { get; set; }
+}

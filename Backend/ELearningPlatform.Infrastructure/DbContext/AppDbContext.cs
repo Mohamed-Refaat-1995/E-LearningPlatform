@@ -1,6 +1,5 @@
 using System.Linq;
-using ELearningPlatform.Core.Entities;
-using ELearningPlatform.Core.Enums;
+using ELearningPlatform.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -19,9 +18,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<Instructor> Instructors => Set<Instructor>();
     public DbSet<Admin> Admins => Set<Admin>();
     public DbSet<Course> Courses { get; set; } = null!;
+    public DbSet<Category> Categories { get; set; } = null!;
     public DbSet<Section> Sections { get; set; } = null!;
     public DbSet<Lesson> Lessons { get; set; } = null!;
-    public DbSet<LessonContent> LessonContents { get; set; } = null!;
     public DbSet<Enrollment> Enrollments { get; set; } = null!;
     public DbSet<LessonProgress> LessonProgresses { get; set; } = null!;
     public DbSet<Quiz> Quizzes { get; set; } = null!;
@@ -36,16 +35,17 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<Coupon> Coupons { get; set; } = null!;
+    public DbSet<UserSession> UserSessions { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         ConfigureUserEntity(modelBuilder);
+        ConfigureCategoryEntity(modelBuilder);
         ConfigureCourseEntity(modelBuilder);
         ConfigureSectionEntity(modelBuilder);
         ConfigureLessonEntity(modelBuilder);
-        ConfigureLessonContentEntity(modelBuilder);
         ConfigureEnrollmentEntity(modelBuilder);
         ConfigureLessonProgressEntity(modelBuilder);
         ConfigureQuizEntity(modelBuilder);
@@ -60,6 +60,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         ConfigureOrderEntity(modelBuilder);
         ConfigureOrderItemEntity(modelBuilder);
         ConfigureCouponEntity(modelBuilder);
+        ConfigureUserSessionEntity(modelBuilder);
 
         foreach (var fk in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()))
         {
@@ -80,18 +81,14 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.PasswordHash).IsRequired();
             entity.HasIndex(e => e.Email).IsUnique();
-            entity.HasMany(e => e.CreatedCourses).WithOne(c => c.Instructor).HasForeignKey(c => c.InstructorId);
-            entity.HasMany(e => e.Enrollments).WithOne(en => en.Student).HasForeignKey(en => en.StudentId);
-            entity.HasMany(e => e.Reviews).WithOne(r => r.Student).HasForeignKey(r => r.StudentId);
-            entity.HasMany(e => e.StudentAnswers).WithOne(sa => sa.Student).HasForeignKey(sa => sa.StudentId);
-            entity.HasMany(e => e.Certificates).WithOne(c => c.Student).HasForeignKey(c => c.StudentId);
-            entity.HasMany(e => e.Orders).WithOne(o => o.User).HasForeignKey(o => o.UserId);
 
             entity.HasDiscriminator(u => u.Role)
-                .HasValue<Student>(UserRole.Student)
-                .HasValue<Instructor>(UserRole.Instructor)
-                .HasValue<Admin>(UserRole.Admin);
+                .HasValue<Student>(UserRoleEnum.Student)
+                .HasValue<Instructor>(UserRoleEnum.Instructor)
+                .HasValue<Admin>(UserRoleEnum.Admin);
         });
+
+        modelBuilder.Entity<Admin>().Property(e => e.ProfitPercentage).HasPrecision(5, 2);
     }
 
     private void ConfigureCourseEntity(ModelBuilder modelBuilder)
@@ -101,12 +98,23 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(256);
             entity.Property(e => e.Description).IsRequired();
-            entity.Property(e => e.Category).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Level).HasMaxLength(50);
+            entity.Property(e => e.Price).HasPrecision(18, 2);
+            entity.Property(e => e.Level).HasConversion<string>().HasMaxLength(50);
             entity.HasMany(e => e.Sections).WithOne(s => s.Course).HasForeignKey(s => s.CourseId).OnDelete(DeleteBehavior.Cascade);
             entity.HasMany(e => e.Enrollments).WithOne(en => en.Course).HasForeignKey(en => en.CourseId);
             entity.HasMany(e => e.Reviews).WithOne(r => r.Course).HasForeignKey(r => r.CourseId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasMany(e => e.Quizzes).WithOne(q => q.Course).HasForeignKey(q => q.CourseId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Instructor).WithMany(i => i.CreatedCourses).HasForeignKey(e => e.InstructorId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Category).WithMany(c => c.Courses).HasForeignKey(e => e.CategoryId).OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private void ConfigureCategoryEntity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Category>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.HasIndex(e => e.Name).IsUnique();
         });
     }
 
@@ -126,19 +134,10 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(256);
-            entity.HasMany(e => e.Contents).WithOne(lc => lc.Lesson).HasForeignKey(lc => lc.LessonId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasMany(e => e.Progress).WithOne(lp => lp.Lesson).HasForeignKey(lp => lp.LessonId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(e => e.LessonProgresses).WithOne(lp => lp.Lesson).HasForeignKey(lp => lp.LessonId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 
-    private void ConfigureLessonContentEntity(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<LessonContent>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.ContentType).IsRequired().HasMaxLength(50);
-        });
-    }
 
     private void ConfigureEnrollmentEntity(ModelBuilder modelBuilder)
     {
@@ -146,6 +145,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.StudentId, e.CourseId }).IsUnique();
+            entity.Property(e => e.PricePaid).HasPrecision(18, 2);
+            entity.Property(e => e.CompletionPercentage).HasPrecision(5, 2);
             entity.HasMany(e => e.LessonProgresses).WithOne(lp => lp.Enrollment).HasForeignKey(lp => lp.EnrollmentId).OnDelete(DeleteBehavior.Cascade);
         });
     }
@@ -165,8 +166,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.PassingScore).HasPrecision(5, 2);
             entity.HasMany(e => e.Questions).WithOne(q => q.Quiz).HasForeignKey(q => q.QuizId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasMany(e => e.Results).WithOne(qr => qr.Quiz).HasForeignKey(qr => qr.QuizId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 
@@ -177,7 +178,6 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.QuestionText).IsRequired();
             entity.HasMany(e => e.Answers).WithOne(a => a.Question).HasForeignKey(a => a.QuestionId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasMany(e => e.StudentAnswers).WithOne(sa => sa.Question).HasForeignKey(sa => sa.QuestionId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 
@@ -204,6 +204,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         modelBuilder.Entity<QuizResult>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Score).HasPrecision(5, 2);
             entity.HasMany(e => e.StudentAnswers).WithOne(sa => sa.QuizResult).HasForeignKey(sa => sa.QuizResultId).OnDelete(DeleteBehavior.Cascade);
         });
     }
@@ -215,6 +216,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(256);
             entity.HasIndex(e => new { e.CourseId, e.StudentId }).IsUnique();
+            entity.HasOne(e => e.Student).WithMany(s => s.Reviews).HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -224,9 +226,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TransactionNo).HasMaxLength(128);
-            entity.Property(e => e.PaymentMethod).HasMaxLength(50);
-            entity.Property(e => e.Status).HasMaxLength(50);
-            entity.Property(e => e.Currency).HasMaxLength(8);
+            entity.Property(e => e.PaymentMethod).HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.Currency).HasConversion<string>().HasMaxLength(8);
             entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.HasOne(e => e.Invoice).WithOne(i => i.Payment).HasForeignKey<Invoice>(i => i.PaymentId);
             entity.HasOne(e => e.Order).WithOne(o => o.Payment).HasForeignKey<Payment>(p => p.OrderId);
@@ -238,8 +240,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         modelBuilder.Entity<Order>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Currency).HasMaxLength(8);
+            entity.Property(e => e.Status).HasConversion<string>().IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Currency).HasConversion<string>().HasMaxLength(8);
             entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
             entity.HasMany(e => e.Items).WithOne(i => i.Order).HasForeignKey(i => i.OrderId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -262,6 +264,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.InvoiceNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.HasIndex(e => e.InvoiceNumber).IsUnique();
         });
     }
@@ -286,11 +289,27 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
             entity.HasIndex(e => e.Code);
-            entity.Property(e => e.DiscountType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.DiscountType).HasConversion<string>().IsRequired().HasMaxLength(20);
             entity.Property(e => e.DiscountValue).HasPrecision(18, 2);
             entity.Property(e => e.MaxDiscountAmount).HasPrecision(18, 2);
             entity.HasOne(e => e.Course).WithMany().HasForeignKey(e => e.CourseId)
                   .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Instructor).WithMany().HasForeignKey(e => e.InstructorId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private void ConfigureUserSessionEntity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SessionToken).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.DeviceName).HasMaxLength(200);
+            entity.Property(e => e.Browser).HasMaxLength(200);
+            entity.Property(e => e.IpAddress).HasMaxLength(64);
+            entity.HasIndex(e => e.SessionToken).IsUnique();
+            entity.HasOne(e => e.User).WithMany(u => u.UserSessions).HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 
@@ -301,63 +320,23 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         modelBuilder.Entity<Admin>().HasData(new Admin
         {
             Id = 1,
-            FirstName = "Admin",
-            LastName = "User",
-            Email = "admin@elearning.com",
-            PasswordHash = "$2a$11$LkoedNuSaE7snAaG/ebyfeQwsowZr4eXfzwpp4qs3U0hZPApI9ZvK",
-            Role = UserRole.Admin,
+            FirstName = "Mohamed",
+            LastName = "Refaat (Admin)",
+            Email = "mohamed.refaat.99380@gmail.com",
+            PasswordHash = "$2a$11$7GkDq.TLQARy97sZb.aewelwMpzpFyeDFA0dzYsb7ZXny6ToLKim2",
+            Role = UserRoleEnum.Admin,
             IsEmailVerified = true,
             IsActive = true,
             CreatedAt = seedDate,
             UpdatedAt = seedDate
         });
 
-        modelBuilder.Entity<Instructor>().HasData(new Instructor
-        {
-            Id = 2,
-            FirstName = "John",
-            LastName = "Instructor",
-            Email = "instructor@elearning.com",
-            PasswordHash = "$2a$11$CGM7nmZCxOGE/wQFo.Rr..iUQmEVJuCTf6y4FcGrtc4NwzRyr3FjK",
-            Role = UserRole.Instructor,
-            IsEmailVerified = true,
-            IsActive = true,
-            Bio = "Expert in software development and teaching",
-            CreatedAt = seedDate,
-            UpdatedAt = seedDate
-        });
-
-        modelBuilder.Entity<Student>().HasData(new Student
-        {
-            Id = 3,
-            FirstName = "Jane",
-            LastName = "Student",
-            Email = "student@elearning.com",
-            PasswordHash = "$2a$11$AFom8SrgUAwfSaUrpMzZq.nDLJpJ5witFrX2Fl/XCNojDRYXcC0bC",
-            Role = UserRole.Student,
-            IsEmailVerified = true,
-            IsActive = true,
-            CreatedAt = seedDate,
-            UpdatedAt = seedDate
-        });
-
-        var course = new Course
-        {
-            Id = 1,
-            Title = "Complete Web Development Bootcamp",
-            Description = "Learn web development from scratch with HTML, CSS, JavaScript, and modern frameworks.",
-            Category = "Web Development",
-            Level = "Beginner",
-            Price = 99.99m,
-            InstructorId = 2,
-            TotalStudents = 1,
-            AverageRating = 0,
-            IsPublished = true,
-            PublishedAt = seedDate,
-            CreatedAt = seedDate,
-            UpdatedAt = seedDate
-        };
-
-        modelBuilder.Entity<Course>().HasData(course);
+        modelBuilder.Entity<Category>().HasData(
+            new Category { Id = 1, Name = "Web Development", Description = "Frontend, backend and full-stack web courses", CreatedAt = seedDate, UpdatedAt = seedDate },
+            new Category { Id = 2, Name = "Mobile Development", Description = "Android, iOS and cross-platform courses", CreatedAt = seedDate, UpdatedAt = seedDate },
+            new Category { Id = 3, Name = "Data Science", Description = "Data analysis, ML and AI courses", CreatedAt = seedDate, UpdatedAt = seedDate },
+            new Category { Id = 4, Name = "Design", Description = "UI/UX and graphic design courses", CreatedAt = seedDate, UpdatedAt = seedDate },
+            new Category { Id = 5, Name = "Business", Description = "Management, marketing and finance courses", CreatedAt = seedDate, UpdatedAt = seedDate }
+        );
     }
 }

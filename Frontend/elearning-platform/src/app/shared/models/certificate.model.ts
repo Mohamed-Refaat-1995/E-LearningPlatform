@@ -12,6 +12,7 @@ export interface CertificateVerification {
   isValid: boolean;
   studentName?: string;
   courseTitle?: string;
+  instructorName?: string;
   certificateNumber?: string;
   issuedAt?: Date;
   verificationCode?: string;

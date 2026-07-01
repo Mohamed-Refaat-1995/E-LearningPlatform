@@ -1,5 +1,3 @@
-using ELearningPlatform.Core.Entities;
-
 namespace ELearningPlatform.Core.Interfaces;
 
 public interface IOrderService

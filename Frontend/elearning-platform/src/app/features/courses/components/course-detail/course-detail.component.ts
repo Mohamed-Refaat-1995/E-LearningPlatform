@@ -7,12 +7,15 @@ import { takeUntil } from 'rxjs/operators';
 import { CourseService } from '@core/services/course.service';
 import { EnrollmentService } from '@core/services/enrollment.service';
 import { AuthService } from '@core/services/auth.service';
+import { CouponService } from '@core/services/coupon.service';
+import { AdminService } from '@core/services/admin.service';
+import { FormsModule } from '@angular/forms';
 import { Course, CreateReviewRequest } from '@shared/models/course.model';
 
 @Component({
   selector: 'app-course-detail',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule],
   templateUrl: './course-detail.component.html',
   styleUrl: './course-detail.component.scss'
 })
@@ -28,12 +31,24 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
   submittingReview = false;
   reviews: any[] = [];
 
+  // Coupon
+  couponCode = '';
+  couponApplying = false;
+  couponError: string | null = null;
+  couponSuccess: string | null = null;
+  discountedPrice: number | null = null;
+  appliedCouponCode: string | null = null;
+
   // Curriculum expand/collapse
   expandedSections = new Set<number>();
 
   // Free-lesson preview modal
   previewLesson: any = null;
   previewVideoUrl: string | null = null;
+
+  // Price breakdown
+  priceBreakdown: any = null;
+  showPriceBreakdown = false;
 
   private destroy$ = new Subject<void>();
   private courseId = 0;
@@ -42,6 +57,8 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
     private courseService: CourseService,
     private enrollmentService: EnrollmentService,
     private authService: AuthService,
+    private couponService: CouponService,
+    private adminService: AdminService,
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder
@@ -75,6 +92,7 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
           }
           this.checkEnrollment();
           this.loadReviews();
+          this.loadPriceBreakdown();
           this.loading = false;
         },
         error: () => {
@@ -94,6 +112,15 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
           this.isEnrolled = list.some(e => Number(e.courseId) === this.courseId);
         },
         error: () => { this.isEnrolled = false; }
+      });
+  }
+
+  loadPriceBreakdown(): void {
+    this.adminService.getCoursePriceBreakdown(this.courseId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => { this.priceBreakdown = data; },
+        error: () => {}
       });
   }
 
@@ -143,15 +170,52 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
 
   // ─── Enroll / Buy ────────────────────────────────────────────
 
+  applyCoupon(): void {
+    if (!this.couponCode.trim() || !this.course) return;
+    this.couponApplying = true;
+    this.couponError = null;
+    this.couponSuccess = null;
+    this.discountedPrice = null;
+    this.appliedCouponCode = null;
+
+    this.couponService.validateCoupon(this.couponCode.trim(), this.courseId, this.course.price)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (result) => {
+          this.couponApplying = false;
+          this.discountedPrice = result.finalPrice;
+          this.appliedCouponCode = this.couponCode.trim();
+          this.couponSuccess = `Coupon applied! You save $${(this.course!.price - result.finalPrice).toFixed(2)}`;
+        },
+        error: (err) => {
+          this.couponApplying = false;
+          this.couponError = err.error?.message || 'Invalid or expired coupon code.';
+        }
+      });
+  }
+
+  removeCoupon(): void {
+    this.couponCode = '';
+    this.discountedPrice = null;
+    this.appliedCouponCode = null;
+    this.couponSuccess = null;
+    this.couponError = null;
+  }
+
+  get effectivePrice(): number {
+    return this.discountedPrice !== null ? this.discountedPrice : (this.course?.price ?? 0);
+  }
+
   buyCourse(): void {
     if (!this.authService.getToken()) {
       this.router.navigate(['/auth/login'], { queryParams: { returnUrl: `/courses/${this.courseId}` } });
       return;
     }
-    if (this.course?.price === 0) {
+    if (this.effectivePrice === 0) {
       this.enrollFree();
     } else {
-      this.router.navigate(['/payment', this.courseId]);
+      const extras = this.appliedCouponCode ? { coupon: this.appliedCouponCode } : {};
+      this.router.navigate(['/payment', this.courseId], { queryParams: extras });
     }
   }
 

@@ -1,4 +1,4 @@
-using ELearningPlatform.Core.Entities;
+using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
 
 namespace ELearningPlatform.Application.Services;
@@ -12,14 +12,14 @@ public class PaymentService : IPaymentService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Payment> CreatePaymentAsync(int orderId, decimal amount, string paymentMethod = "Stripe")
+    public async Task<Payment> CreatePaymentAsync(int orderId, decimal amount, PaymentMethodEnum paymentMethod = PaymentMethodEnum.Stripe)
     {
         var payment = new Payment
         {
             OrderId = orderId,
             Amount = amount,
             PaymentMethod = paymentMethod,
-            Status = "Pending"
+            Status = PaymentStatusEnum.Purchased
         };
 
         await _unitOfWork.Payments.AddAsync(payment);
@@ -33,7 +33,7 @@ public class PaymentService : IPaymentService
         if (payment == null) return false;
 
         payment.TransactionNo = transactionNo;
-        payment.Status = "Completed";
+        payment.Status = PaymentStatusEnum.Purchased;
         payment.PaidAt = DateTime.UtcNow;
         payment.UpdatedAt = DateTime.UtcNow;
 
@@ -42,7 +42,7 @@ public class PaymentService : IPaymentService
         var order = await _unitOfWork.Orders.GetByIdAsync(payment.OrderId);
         if (order != null)
         {
-            order.Status = "Paid";
+            order.Status = OrderStatusEnum.Completed;
             order.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Orders.Update(order);
         }
@@ -73,9 +73,9 @@ public class PaymentService : IPaymentService
         return invoice;
     }
 
-    public async Task<IEnumerable<Payment>> GetUserPaymentsAsync(int userId)
+    public async Task<IEnumerable<Payment>> GetUserPaymentsAsync(int studentId)
     {
-        var orders = await _unitOfWork.Orders.FindAsync(o => o.UserId == userId && !o.IsDeleted);
+        var orders = await _unitOfWork.Orders.FindAsync(o => o.StudentId == studentId && !o.IsDeleted);
         var orderIds = orders.Select(o => o.Id).ToHashSet();
 
         return await _unitOfWork.Payments.FindAsync(p =>
@@ -95,14 +95,14 @@ public class PaymentService : IPaymentService
         var payment = await _unitOfWork.Payments.GetByIdAsync(paymentId);
         if (payment == null) return false;
 
-        payment.Status = "Refunded";
+        payment.Status = PaymentStatusEnum.Refunded;
         payment.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.Payments.Update(payment);
 
         var order = await _unitOfWork.Orders.GetByIdAsync(payment.OrderId);
         if (order != null)
         {
-            order.Status = "Refunded";
+            order.Status = OrderStatusEnum.Refunded;
             order.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Orders.Update(order);
         }

@@ -1,7 +1,9 @@
-using System;
+namespace ELearningPlatform.Core;
 
-namespace ELearningPlatform.Core.Entities;
-
+/// <summary>
+/// This entity serves as a base class for all entities in the e-learning platform.
+/// It provides common properties such as Id, CreatedAt, UpdatedAt, and IsDeleted that can be inherited by other entity classes.
+/// </summary>
 public abstract class BaseEntity
 {
     public int Id { get; set; }

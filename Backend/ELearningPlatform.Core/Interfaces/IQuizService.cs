@@ -1,5 +1,3 @@
-using ELearningPlatform.Core.Entities;
-
 namespace ELearningPlatform.Core.Interfaces;
 
 public interface IQuizService
@@ -10,8 +8,8 @@ public interface IQuizService
     Task<Quiz> CreateQuizAsync(Quiz quiz);
     Task UpdateQuizAsync(Quiz quiz);
     Task DeleteQuizAsync(int quizId);
-    Task<Question> AddQuestionAsync(int quizId, string questionText, string questionType, int points, int displayOrder);
-    Task UpdateQuestionAsync(int questionId, string questionText, string questionType, int points, int displayOrder);
+    Task<Question> AddQuestionAsync(int quizId, string questionText, QuestionTypeEnum questionType, int points, int displayOrder);
+    Task UpdateQuestionAsync(int questionId, string questionText, QuestionTypeEnum questionType, int points, int displayOrder);
     Task DeleteQuestionAsync(int questionId);
     Task<Answer> AddAnswerAsync(int questionId, string answerText, bool isCorrect, int displayOrder);
     Task UpdateAnswerAsync(int answerId, string answerText, bool isCorrect, int displayOrder);

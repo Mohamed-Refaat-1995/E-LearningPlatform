@@ -1,5 +1,5 @@
+using ELearningPlatform.Application;
 using ELearningPlatform.Application.DTOs.Orders;
-using ELearningPlatform.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -33,9 +33,13 @@ public class PaymentController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetMyPayments()
     {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
+        }
+
         var payments = await _paymentService.GetUserPaymentsAsync(userId);
-        return Ok(payments);
+        return Ok(new GenericResponseDTO<object>(true, payments));
     }
 
     [HttpGet("me")]
@@ -48,46 +52,75 @@ public class PaymentController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var payment = await _paymentService.GetPaymentByIdAsync(id);
-        if (payment == null) return NotFound(new { message = "Payment not found" });
-        return Ok(payment);
+        return payment == null
+            ? NotFound(new GenericResponseDTO<object>(false, "Payment not found"))
+            : Ok(new GenericResponseDTO<object>(true, payment));
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatePaymentRequestDto request)
     {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
+        }
 
         var order = await _orderService.GetOrderByIdAsync(request.OrderId);
-        if (order == null) return NotFound(new { message = "Order not found" });
-        if (order.UserId != userId) return Forbid();
+        if (order == null)
+        {
+            return NotFound(new GenericResponseDTO<object>(false, "Order not found"));
+        }
+
+        if (order.StudentId != userId)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
         var payment = await _paymentService.CreatePaymentAsync(request.OrderId, request.Amount, request.PaymentMethod);
-        return Ok(payment);
+        return Ok(new GenericResponseDTO<object>(true, payment));
     }
 
     [HttpPost("{id}/process")]
     public async Task<IActionResult> Process(int id, [FromBody] ProcessPaymentRequestDto request)
     {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
+        }
 
         var payment = await _paymentService.GetPaymentByIdAsync(id);
-        if (payment == null) return NotFound(new { message = "Payment not found" });
+        if (payment == null)
+        {
+            return NotFound(new GenericResponseDTO<object>(false, "Payment not found"));
+        }
 
         var order = await _orderService.GetOrderByIdAsync(payment.OrderId);
-        if (order == null) return NotFound(new { message = "Order not found" });
-        if (order.UserId != userId) return Forbid();
+        if (order == null)
+        {
+            return NotFound(new GenericResponseDTO<object>(false, "Order not found"));
+        }
+
+        if (order.StudentId != userId)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
         var ok = await _paymentService.ProcessPaymentAsync(id, request.GetTransactionNo());
-        if (!ok) return BadRequest(new { message = "Payment processing failed" });
+        if (!ok)
+        {
+            return BadRequest(new GenericResponseDTO<object>(false, "Payment processing failed"));
+        }
 
         foreach (var item in order.Items)
         {
-            if (!await _enrollmentService.IsEnrolledAsync(order.UserId, item.CourseId))
-                await _enrollmentService.EnrollStudentAsync(order.UserId, item.CourseId, item.Price);
+            if (!await _enrollmentService.IsEnrolledAsync(order.StudentId, item.CourseId))
+            {
+                await _enrollmentService.EnrollStudentAsync(order.StudentId, item.CourseId, item.Price);
+            }
         }
 
         var invoice = await _paymentService.GenerateInvoiceAsync(id);
-        return Ok(new { payment, invoice });
+        return Ok(new GenericResponseDTO<object>(true, new { payment, invoice }));
     }
 
     [HttpPost("{id}/refund")]
@@ -95,7 +128,11 @@ public class PaymentController : ControllerBase
     public async Task<IActionResult> Refund(int id)
     {
         var ok = await _paymentService.RefundPaymentAsync(id);
-        if (!ok) return BadRequest(new { message = "Refund failed" });
-        return Ok(new { message = "Payment refunded" });
+        if (!ok)
+        {
+            return BadRequest(new GenericResponseDTO<object>(false, "Refund failed"));
+        }
+
+        return Ok(new GenericResponseDTO<object>(true, "Payment refunded"));
     }
 }

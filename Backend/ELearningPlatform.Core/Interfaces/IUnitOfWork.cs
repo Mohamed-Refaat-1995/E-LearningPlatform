@@ -1,14 +1,12 @@
-using ELearningPlatform.Core.Entities;
-
 namespace ELearningPlatform.Core.Interfaces;
 
 public interface IUnitOfWork : IAsyncDisposable
 {
     IRepository<User> Users { get; }
     IRepository<Course> Courses { get; }
+    IRepository<Category> Categories { get; }
     IRepository<Section> Sections { get; }
     IRepository<Lesson> Lessons { get; }
-    IRepository<LessonContent> LessonContents { get; }
     IRepository<Enrollment> Enrollments { get; }
     IRepository<LessonProgress> LessonProgresses { get; }
     IRepository<Quiz> Quizzes { get; }
@@ -23,6 +21,7 @@ public interface IUnitOfWork : IAsyncDisposable
     IRepository<Order> Orders { get; }
     IRepository<OrderItem> OrderItems { get; }
     IRepository<Coupon> Coupons { get; }
+    IRepository<UserSession> UserSessions { get; }
 
     Task SaveChangesAsync();
     Task BeginTransactionAsync();

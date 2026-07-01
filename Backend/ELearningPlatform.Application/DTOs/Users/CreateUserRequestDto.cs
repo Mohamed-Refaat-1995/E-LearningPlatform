@@ -1,23 +1,31 @@
-using ELearningPlatform.Core.Enums;
+using ELearningPlatform.Core;
 
 namespace ELearningPlatform.Application.DTOs.Users;
 
-public record CreateUserRequestDto(
-    string FirstName,
-    string LastName,
-    string Email,
-    string Password,
-    UserRole Role,
-    string? Bio
-);
+public class CreateUserRequestDto
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public UserRoleEnum Role { get; set; }
+    public string? Bio { get; set; }
+}
 
-public record UpdateProfileRequestDto(
-    string FirstName,
-    string LastName,
-    string? PhoneNumber,
-    string? Bio
-);
+public class UpdateProfileRequestDto
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public string? Bio { get; set; }
+}
 
-public record SetActiveRequestDto(bool IsActive);
+public class SetActiveRequestDto
+{
+    public bool IsActive { get; set; }
+}
 
-public record ChangeRoleRequestDto(UserRole Role);
+public class ChangeRoleRequestDto
+{
+    public UserRoleEnum Role { get; set; }
+}

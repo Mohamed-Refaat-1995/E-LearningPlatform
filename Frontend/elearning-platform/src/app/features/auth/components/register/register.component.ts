@@ -1,8 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '@core/services/auth.service';
+import { environment } from '../../../../../environments/environment';
+
+declare const google: any;
 
 @Component({
   selector: 'app-register',
@@ -11,7 +14,7 @@ import { AuthService } from '@core/services/auth.service';
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss'
 })
-export class RegisterComponent implements OnInit {
+export class RegisterComponent implements OnInit, AfterViewInit {
   registerForm!: FormGroup;
   loading = false;
   error: string | null = null;
@@ -38,6 +41,45 @@ export class RegisterComponent implements OnInit {
       userType: ['student', Validators.required],
       agreeTerms: [false, [Validators.requiredTrue]]
     }, { validators: this.passwordMatchValidator });
+  }
+
+  ngAfterViewInit(): void {
+    this.initGoogleSignIn();
+  }
+
+  private initGoogleSignIn(): void {
+    if (typeof google === 'undefined' || !google?.accounts?.id) {
+      setTimeout(() => this.initGoogleSignIn(), 300);
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: environment.googleClientId,
+      callback: (response: any) => this.handleGoogleCredential(response)
+    });
+    const el = document.getElementById('g_id_signin');
+    if (el) {
+      google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', width: 320 });
+    }
+  }
+
+  private handleGoogleCredential(response: any): void {
+    this.loading = true;
+    this.error = null;
+    this.authService.googleLogin(response.credential).subscribe({
+      next: (result) => {
+        this.loading = false;
+        const roleRoutes: Record<string, string> = {
+          Instructor: '/instructor',
+          Admin: '/admin',
+          Student: '/dashboard'
+        };
+        this.router.navigate([roleRoutes[result.role] ?? '/dashboard']);
+      },
+      error: (error) => {
+        this.loading = false;
+        this.error = error.error?.message || 'Google sign-in failed. Please try again.';
+      }
+    });
   }
 
   passwordMatchValidator(group: FormGroup): { [key: string]: any } | null {
@@ -67,10 +109,10 @@ export class RegisterComponent implements OnInit {
     this.authService.register(registerRequest).subscribe({
       next: (response) => {
         this.loading = false;
-        this.success = 'Registration successful! Redirecting to login...';
+        this.success = 'Registration successful! Redirecting to email verification...';
         setTimeout(() => {
-          this.router.navigate(['/auth/login']);
-        }, 2000);
+          this.router.navigate(['/auth/verify-email'], { queryParams: { email } });
+        }, 1500);
       },
       error: (error) => {
         this.loading = false;

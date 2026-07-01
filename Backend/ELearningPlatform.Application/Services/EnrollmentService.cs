@@ -1,4 +1,4 @@
-using ELearningPlatform.Core.Entities;
+using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
 using System.Linq;
 
@@ -52,11 +52,12 @@ public class EnrollmentService : IEnrollmentService
         var course = await _unitOfWork.Courses.GetByIdAsync(courseId);
         if (course != null)
         {
-            course.TotalStudents++;
+           // course.TotalStudents++;
             _unitOfWork.Courses.Update(course);
         }
 
         await _unitOfWork.SaveChangesAsync();
+
         return enrollment;
     }
 
@@ -121,6 +122,7 @@ public class EnrollmentService : IEnrollmentService
         var enrollment = await GetEnrollmentAsync(studentId, courseId);
         return enrollment != null;
     }
+
 
     private async Task<IEnumerable<Lesson>> GetEnrollmentLessonsAsync(int courseId)
     {

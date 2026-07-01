@@ -1,13 +1,11 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '@core/guards/auth.guard';
 import { roleGuard } from '@core/guards/role.guard';
-import { rootRedirectGuard } from '@core/guards/root-redirect.guard';
 
 export const appRoutes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    canActivate: [rootRedirectGuard],
     loadComponent: () =>
       import('./features/home/components/home/home.component').then(m => m.HomeComponent)
   },

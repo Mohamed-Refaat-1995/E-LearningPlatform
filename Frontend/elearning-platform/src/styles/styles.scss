@@ -7,7 +7,134 @@ html, body {
   height: 100%;
 }
 
+/* Semantic theme tokens — light is the default, `.dark` on <html> overrides. */
+:root {
+  --app-bg: #f8fafc;   /* slate-50  */
+  --app-text: #0f172a; /* slate-900 */
+}
+html.dark {
+  --app-bg: #0f172a;   /* slate-900 */
+  --app-text: #f1f5f9; /* slate-100 */
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  color: #333;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ============================================================================
+   APP-WIDE DARK THEME
+   ----------------------------------------------------------------------------
+   The individual feature components are styled with light-theme Tailwind
+   neutrals (bg-white, bg-gray-50, text-gray-800, border-gray-200, …) and do
+   NOT carry per-element `dark:` variants. Rather than editing 39 templates,
+   we remap those neutral utilities to dark surfaces + light text whenever the
+   `.dark` class is present on <html>.
+
+   Scope: ONLY neutral grays / white are remapped. Brand & status colors
+   (indigo, green, red, amber, blue accents, gradients) are left untouched so
+   buttons, badges and highlights keep their meaning.
+
+   Specificity: the `html.dark` prefix (0,2,1) beats a bare Tailwind utility
+   (0,1,0), and this block sits after `@tailwind utilities`, so these win.
+   ========================================================================== */
+html.dark {
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────── */
+  .bg-white   { background-color: #1e293b !important; } /* card / panel  */
+  .bg-gray-50 { background-color: #1a2436 !important; } /* subtle / table head */
+  .bg-gray-100{ background-color: #334155 !important; }
+  .bg-gray-200{ background-color: #475569 !important; }
+
+  /* Elements that are already dark in light mode stay dark — leave alone:
+     bg-gray-800, bg-gray-900, bg-slate-900, gradients, brand colors. */
+
+  /* ── Text ─────────────────────────────────────────────────────────────── */
+  .text-black,
+  .text-gray-900 { color: #f1f5f9 !important; } /* primary   */
+  .text-gray-800 { color: #e2e8f0 !important; }
+  .text-gray-700 { color: #cbd5e1 !important; } /* secondary */
+  .text-gray-600 { color: #cbd5e1 !important; }
+  .text-gray-500 { color: #94a3b8 !important; } /* muted     */
+  .text-gray-400 { color: #94a3b8 !important; }
+
+  /* ── Borders & dividers ───────────────────────────────────────────────── */
+  .border-gray-100 { border-color: #1e293b !important; }
+  .border-gray-200 { border-color: #334155 !important; }
+  .border-gray-300 { border-color: #475569 !important; }
+
+  .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1e293b !important; }
+  .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #334155 !important; }
+
+  /* ── Hover states (normal + hover both stay readable) ─────────────────── */
+  .hover\:bg-gray-50:hover  { background-color: #334155 !important; }
+  .hover\:bg-gray-100:hover { background-color: #3b4a61 !important; }
+  .hover\:bg-white:hover    { background-color: #253044 !important; }
+
+  .hover\:text-gray-900:hover,
+  .hover\:text-gray-800:hover,
+  .hover\:text-gray-700:hover { color: #f1f5f9 !important; }
+
+  /* ── Form controls ────────────────────────────────────────────────────── */
+  input, select, textarea {
+    color-scheme: dark;
+  }
+  ::placeholder { color: #64748b !important; }
+
+  /* ── Status / accent surfaces (soft -50/-100 chips & tiles) ───────────────
+     Darken the light colored backgrounds to a low-alpha tint of the same hue
+     so colored/gray text placed on them stays readable, and lighten the deep
+     colored text (-600/-700/-800) to its -300 shade. Solid buttons
+     (bg-*-500/-600 + text-white) are intentionally left untouched. */
+
+  /* Indigo */
+  .bg-indigo-50  { background-color: rgba(99,102,241,.10) !important; }
+  .bg-indigo-100 { background-color: rgba(99,102,241,.18) !important; }
+  .text-indigo-600, .text-indigo-700, .text-indigo-800 { color: #a5b4fc !important; }
+
+  /* Violet / Purple */
+  .bg-violet-50,  .bg-purple-50  { background-color: rgba(139,92,246,.10) !important; }
+  .bg-violet-100, .bg-purple-100 { background-color: rgba(139,92,246,.18) !important; }
+  .text-violet-600, .text-violet-700, .text-purple-600, .text-purple-700 { color: #c4b5fd !important; }
+
+  /* Blue */
+  .bg-blue-50  { background-color: rgba(59,130,246,.10) !important; }
+  .bg-blue-100 { background-color: rgba(59,130,246,.18) !important; }
+  .text-blue-600, .text-blue-700, .text-blue-800 { color: #93c5fd !important; }
+
+  /* Sky / Cyan */
+  .bg-sky-50,  .bg-cyan-50  { background-color: rgba(14,165,233,.10) !important; }
+  .bg-sky-100, .bg-cyan-100 { background-color: rgba(14,165,233,.18) !important; }
+  .text-sky-600, .text-sky-700, .text-cyan-600, .text-cyan-700 { color: #7dd3fc !important; }
+
+  /* Green / Emerald */
+  .bg-green-50,  .bg-emerald-50  { background-color: rgba(34,197,94,.10) !important; }
+  .bg-green-100, .bg-emerald-100 { background-color: rgba(34,197,94,.18) !important; }
+  .text-green-600, .text-green-700, .text-green-800,
+  .text-emerald-600, .text-emerald-700 { color: #86efac !important; }
+
+  /* Teal */
+  .bg-teal-50  { background-color: rgba(20,184,166,.10) !important; }
+  .bg-teal-100 { background-color: rgba(20,184,166,.18) !important; }
+  .text-teal-600, .text-teal-700 { color: #5eead4 !important; }
+
+  /* Red / Rose */
+  .bg-red-50,  .bg-rose-50  { background-color: rgba(239,68,68,.10) !important; }
+  .bg-red-100, .bg-rose-100 { background-color: rgba(239,68,68,.18) !important; }
+  .text-red-600, .text-red-700, .text-red-800,
+  .text-rose-600, .text-rose-700 { color: #fca5a5 !important; }
+
+  /* Amber / Yellow / Orange */
+  .bg-amber-50,  .bg-yellow-50,  .bg-orange-50  { background-color: rgba(245,158,11,.10) !important; }
+  .bg-amber-100, .bg-yellow-100, .bg-orange-100 { background-color: rgba(245,158,11,.18) !important; }
+  .text-amber-600, .text-amber-700, .text-amber-800,
+  .text-yellow-600, .text-yellow-700,
+  .text-orange-600, .text-orange-700 { color: #fcd34d !important; }
+
+  /* Pink */
+  .bg-pink-50  { background-color: rgba(236,72,153,.10) !important; }
+  .bg-pink-100 { background-color: rgba(236,72,153,.18) !important; }
+  .text-pink-600, .text-pink-700 { color: #f9a8d4 !important; }
 }

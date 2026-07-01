@@ -1,16 +1,18 @@
-using ELearningPlatform.Core.Entities;
 using ELearningPlatform.Core.Interfaces;
-using System.Linq;
+using ELearningPlatform.Infrastructure.DbContext;
+using Microsoft.EntityFrameworkCore;
 
 namespace ELearningPlatform.Application.Services;
 
 public class CourseService : ICourseService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly AppDbContext _dbContext;
 
-    public CourseService(IUnitOfWork unitOfWork)
+    public CourseService(IUnitOfWork unitOfWork, AppDbContext dbContext)
     {
         _unitOfWork = unitOfWork;
+        _dbContext = dbContext;
     }
 
     public async Task<Course?> GetCourseByIdAsync(int id)
@@ -25,33 +27,40 @@ public class CourseService : ICourseService
 
     public async Task<IEnumerable<Course>> SearchCoursesAsync(string searchTerm)
     {
-        return await _unitOfWork.Courses.FindAsync(c =>
-            !c.IsDeleted && c.IsPublished &&
-            (c.Title.Contains(searchTerm) || c.Description.Contains(searchTerm))
+        return await _unitOfWork.Courses.FindAsync(c => !c.IsDeleted && c.IsPublished &&
+                                                        (c.Title.Contains(searchTerm) || c.Description.Contains(searchTerm))
         );
     }
 
-    public async Task<IEnumerable<Course>> FilterCoursesAsync(string? category, string? level, decimal? minPrice, decimal? maxPrice, int pageNumber = 1, int pageSize = 10)
+    public async Task<IEnumerable<Course>> FilterCoursesAsync(int? categoryId, CourseLevelEnum? level, decimal? minPrice, decimal? maxPrice, int pageNumber = 1, int pageSize = 10)
     {
         var courses = await _unitOfWork.Courses.GetAllAsync();
         var filtered = courses.AsQueryable().Where(c => !c.IsDeleted && c.IsPublished);
 
-        if (!string.IsNullOrEmpty(category))
-            filtered = filtered.Where(c => c.Category == category);
+        if (categoryId.HasValue)
+        {
+            filtered = filtered.Where(c => c.CategoryId == categoryId.Value);
+        }
 
-        if (!string.IsNullOrEmpty(level))
-            filtered = filtered.Where(c => c.Level == level);
+        if (level.HasValue)
+        {
+            filtered = filtered.Where(c => c.Level == level.Value);
+        }
 
         if (minPrice.HasValue)
+        {
             filtered = filtered.Where(c => c.Price >= minPrice);
+        }
 
         if (maxPrice.HasValue)
+        {
             filtered = filtered.Where(c => c.Price <= maxPrice);
+        }
 
         return filtered
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .OrderByDescending(c => c.AverageRating)
+            //      .OrderByDescending(c => c.AverageRating)
             .ToList();
     }
 
@@ -120,55 +129,118 @@ public class CourseService : ICourseService
         await UpdateAverageRatingAsync(courseId);
     }
 
-    public async Task<IEnumerable<string>> GetCategoriesAsync()
+    public async Task<IEnumerable<Category>> GetCategoriesAsync()
     {
-        var courses = await _unitOfWork.Courses.FindAsync(c => !c.IsDeleted && c.IsPublished);
-        return courses
-            .Select(c => c.Category)
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Distinct()
-            .OrderBy(c => c)
-            .ToList();
+        var categories = await _unitOfWork.Categories.FindAsync(c => !c.IsDeleted);
+        return categories.OrderBy(c => c.Name).ToList();
     }
 
     public async Task<IEnumerable<Course>> GetPopularCoursesAsync(int take = 10)
     {
         var courses = await _unitOfWork.Courses.FindAsync(c => !c.IsDeleted && c.IsPublished);
-        return courses
-            .OrderByDescending(c => c.TotalStudents)
-            .ThenByDescending(c => c.AverageRating)
-            .Take(take)
-            .ToList();
+        return courses.OrderByDescending(c => GetTotalStudentsForCourse(c.Id))
+                    .ThenByDescending(c => GetAverageRateForCourse(c.Id))
+                    .Take(take)
+                    .ToList();
+
     }
 
     public async Task<IEnumerable<Course>> GetTopRatedCoursesAsync(int take = 10)
     {
         var courses = await _unitOfWork.Courses.FindAsync(c => !c.IsDeleted && c.IsPublished);
-        return courses
-            .OrderByDescending(c => c.AverageRating)
-            .ThenByDescending(c => c.TotalReviews)
-            .Take(take)
-            .ToList();
+        return courses.OrderByDescending(c => GetAverageRateForCourse(c.Id))
+                    .ThenByDescending(c => GetTotalReviewsForCourse(c.Id))
+                    .Take(take)
+                    .ToList();
     }
 
     public async Task UpdateAverageRatingAsync(int courseId)
     {
         var course = await _unitOfWork.Courses.GetByIdAsync(courseId);
-        if (course == null) return;
+        if (course == null)
+        {
+            return;
+        }
 
         var reviews = await GetCourseReviewsAsync(courseId);
         if (!reviews.Any())
         {
-            course.AverageRating = 0;
-            course.TotalReviews = 0;
+            //course.AverageRating = 0;
+            //course.TotalReviews = 0;
         }
         else
         {
-            course.AverageRating = (decimal)reviews.Average(r => r.Rating);
-            course.TotalReviews = reviews.Count();
+            //course.AverageRating = (decimal)reviews.Average(r => r.Rating);
+            //course.TotalReviews = reviews.Count();
         }
 
         _unitOfWork.Courses.Update(course);
         await _unitOfWork.SaveChangesAsync();
     }
+
+    public async Task<Course?> GetCourseContentAccordingToUserRole(int courseId, bool includeFullContent = false)
+    {
+        return await _dbContext.Courses
+            .Where(c => c.Id == courseId && !c.IsDeleted && c.IsPublished)
+            .Select(c => new Course
+            {
+                Id = c.Id,
+                Title = c.Title,
+                Description = c.Description,
+                ThumbnailUrl = c.ThumbnailUrl,
+                Price = c.Price,
+                CategoryId = c.CategoryId,
+                Level = c.Level,
+                InstructorId = c.InstructorId,
+                PublishedAt = c.PublishedAt,
+                IsPublished = c.IsPublished,
+                RefundPeriodDays = c.RefundPeriodDays,
+                Sections = c.Sections.Select(s => new Section
+                {
+                    Id = s.Id,
+                    Title = s.Title,
+                    Description = s.Description,
+                    CourseId = s.CourseId,
+                    DisplayOrder = s.DisplayOrder,
+                    Lessons = s.Lessons.Select(l => new Lesson
+                    {
+                        Id = l.Id,
+                        CreatedAt = l.CreatedAt,
+                        UpdatedAt = l.UpdatedAt,
+                        IsDeleted = l.IsDeleted,
+                        Title = l.Title,
+                        Description = l.Description,
+                        SectionId = l.SectionId,
+                        DisplayOrder = l.DisplayOrder,
+                        DurationMinutes = l.DurationMinutes,
+                        IsPreview = l.IsPreview,
+                        ContentType = l.ContentType,
+                        VideoUrl = includeFullContent ? l.VideoUrl : (l.IsPreview ? l.VideoUrl : null),
+                        VideoPublicId = includeFullContent ? l.VideoPublicId :(l.IsPreview ? l.VideoPublicId : null),
+                        TextContent = includeFullContent ? l.TextContent : (l.IsPreview ? l.TextContent : null),
+                        ResourceUrl = includeFullContent ? l.ResourceUrl : (l.IsPreview ? l.ResourceUrl : null),
+                    }).ToList()
+                }).ToList(),
+                Enrollments = c.Enrollments.ToList(),
+                Reviews = c.Reviews.ToList()
+            })
+            .FirstOrDefaultAsync();
+    }
+
+    private async Task<float> GetTotalStudentsForCourse(int courseId)
+    {
+        return await _unitOfWork.Enrollments.CountAsync(e => e.CourseId == courseId && !e.IsDeleted);
+    }
+    private async Task<float> GetAverageRateForCourse(int courseId)
+    {
+        var courseReviews = await _unitOfWork.Reviews.FindAsync(r => r.CourseId == courseId && !r.IsDeleted);
+        var average = (float)courseReviews.Sum(r => r.Rating) / courseReviews.Count();
+        return average;
+    }
+    private async Task<int> GetTotalReviewsForCourse(int courseId)
+    {
+        return await _unitOfWork.Reviews.CountAsync(r => r.CourseId == courseId && !r.IsDeleted);
+    }
+
+
 }

@@ -1,0 +1,132 @@
+// E-Learning Platform — Chen-style ER diagram
+// Entities = rectangles, Columns = ellipses, Relationships = arrows with (1)...(m) cardinality.
+// NOTE: every table also inherits Id (PK), CreatedAt, UpdatedAt, IsDeleted from BaseEntity.
+//       Only Id + domain columns are drawn as ellipses to keep the diagram readable.
+// Render:  dot -Tsvg ERD-chen.dot -o ERD-chen.svg   (or -Tpng)
+//          fdp -Tsvg ERD-chen.dot -o ERD-chen.svg   (looser, more "bubble" layout)
+
+digraph ERD {
+    graph [rankdir=LR, splines=true, overlap=false, nodesep=0.35, ranksep=1.1, fontname="Segoe UI", label="E-Learning Platform — ER Diagram", labelloc=t, fontsize=22];
+    node  [fontname="Segoe UI", fontsize=10];
+    edge  [fontname="Segoe UI", fontsize=10];
+
+    // ---- styles ----
+    // entities
+    node [shape=box, style="filled,bold", fillcolor="#cfe2ff", color="#1e5fbf", fontsize=12, penwidth=1.6];
+    USER; STUDENT; INSTRUCTOR; ADMIN; USERSESSION;
+    CATEGORY; COURSE; SECTION; LESSON; QUIZ; QUESTION; ANSWER;
+    ENROLLMENT; LESSONPROGRESS; QUIZRESULT; STUDENTANSWER; REVIEW;
+    ORDER; ORDERITEM; PAYMENT; INVOICE; CERTIFICATE; COUPON;
+
+    // attribute (column) default style
+    node [shape=ellipse, style=filled, fillcolor="#fff6d5", color="#b9962e", fontsize=9, penwidth=1.0];
+
+    // ================= ATTRIBUTES (ellipses) =================
+    // helper: PK shown as <U>underlined</U>, FK marked (FK)
+    USER_Id[label=<<U>Id</U>>]; USER_Email[label="Email (UK)"]; USER_First[label="FirstName"]; USER_Last[label="LastName"]; USER_Pwd[label="PasswordHash"]; USER_Role[label="Role (disc.)"]; USER_Active[label="IsActive"];
+    USER -> {USER_Id USER_Email USER_First USER_Last USER_Pwd USER_Role USER_Active} [arrowhead=none, color="#b9962e"];
+
+    ADMIN_Profit[label="ProfitPercentage"];
+    ADMIN -> {ADMIN_Profit} [arrowhead=none, color="#b9962e"];
+
+    US_Id[label=<<U>Id</U>>]; US_UserId[label="UserId (FK)"]; US_Token[label="SessionToken (UK)"]; US_Active[label="IsActive"]; US_Dev[label="DeviceName"];
+    USERSESSION -> {US_Id US_UserId US_Token US_Active US_Dev} [arrowhead=none, color="#b9962e"];
+
+    CAT_Id[label=<<U>Id</U>>]; CAT_Name[label="Name (UK)"]; CAT_Desc[label="Description"]; CAT_Icon[label="IconUrl"];
+    CATEGORY -> {CAT_Id CAT_Name CAT_Desc CAT_Icon} [arrowhead=none, color="#b9962e"];
+
+    CO_Id[label=<<U>Id</U>>]; CO_Title[label="Title"]; CO_Price[label="Price"]; CO_Cat[label="CategoryId (FK)"]; CO_Inst[label="InstructorId (FK)"]; CO_Level[label="Level"]; CO_Pub[label="IsPublished"];
+    COURSE -> {CO_Id CO_Title CO_Price CO_Cat CO_Inst CO_Level CO_Pub} [arrowhead=none, color="#b9962e"];
+
+    SE_Id[label=<<U>Id</U>>]; SE_Course[label="CourseId (FK)"]; SE_Title[label="Title"]; SE_Order[label="DisplayOrder"];
+    SECTION -> {SE_Id SE_Course SE_Title SE_Order} [arrowhead=none, color="#b9962e"];
+
+    LE_Id[label=<<U>Id</U>>]; LE_Sec[label="SectionId (FK)"]; LE_Title[label="Title"]; LE_Type[label="ContentType"]; LE_Video[label="VideoUrl"]; LE_Order[label="DisplayOrder"];
+    LESSON -> {LE_Id LE_Sec LE_Title LE_Type LE_Video LE_Order} [arrowhead=none, color="#b9962e"];
+
+    QZ_Id[label=<<U>Id</U>>]; QZ_Lesson[label="LessonId (FK)"]; QZ_Title[label="Title"]; QZ_Pass[label="PassingScore"]; QZ_Pub[label="IsPublished"];
+    QUIZ -> {QZ_Id QZ_Lesson QZ_Title QZ_Pass QZ_Pub} [arrowhead=none, color="#b9962e"];
+
+    QU_Id[label=<<U>Id</U>>]; QU_Quiz[label="QuizId (FK)"]; QU_Text[label="QuestionText"]; QU_Type[label="QuestionType"]; QU_Pts[label="Points"];
+    QUESTION -> {QU_Id QU_Quiz QU_Text QU_Type QU_Pts} [arrowhead=none, color="#b9962e"];
+
+    AN_Id[label=<<U>Id</U>>]; AN_Q[label="QuestionId (FK)"]; AN_Text[label="AnswerText"]; AN_Correct[label="IsCorrect"];
+    ANSWER -> {AN_Id AN_Q AN_Text AN_Correct} [arrowhead=none, color="#b9962e"];
+
+    EN_Id[label=<<U>Id</U>>]; EN_Stu[label="StudentId (FK)"]; EN_Course[label="CourseId (FK)"]; EN_Paid[label="PricePaid"]; EN_Pct[label="CompletionPercentage"]; EN_Ref[label="IsRefunded"];
+    ENROLLMENT -> {EN_Id EN_Stu EN_Course EN_Paid EN_Pct EN_Ref} [arrowhead=none, color="#b9962e"];
+
+    LP_Id[label=<<U>Id</U>>]; LP_Enr[label="EnrollmentId (FK)"]; LP_Les[label="LessonId (FK)"]; LP_Done[label="IsCompleted"]; LP_Sec[label="WatchedSeconds"];
+    LESSONPROGRESS -> {LP_Id LP_Enr LP_Les LP_Done LP_Sec} [arrowhead=none, color="#b9962e"];
+
+    QR_Id[label=<<U>Id</U>>]; QR_Quiz[label="QuizId (FK)"]; QR_Stu[label="StudentId (FK)"]; QR_Score[label="Score"]; QR_Time[label="TimeSpentSeconds"];
+    QUIZRESULT -> {QR_Id QR_Quiz QR_Stu QR_Score QR_Time} [arrowhead=none, color="#b9962e"];
+
+    SA_Id[label=<<U>Id</U>>]; SA_Res[label="QuizResultId (FK)"]; SA_Q[label="QuestionId (FK)"]; SA_Stu[label="StudentId (FK)"]; SA_Sel[label="SelectedAnswerId (FK,null)"]; SA_Correct[label="IsCorrect"];
+    STUDENTANSWER -> {SA_Id SA_Res SA_Q SA_Stu SA_Sel SA_Correct} [arrowhead=none, color="#b9962e"];
+
+    RE_Id[label=<<U>Id</U>>]; RE_Course[label="CourseId (FK)"]; RE_Stu[label="StudentId (FK)"]; RE_Rating[label="Rating"]; RE_Title[label="Title"];
+    REVIEW -> {RE_Id RE_Course RE_Stu RE_Rating RE_Title} [arrowhead=none, color="#b9962e"];
+
+    OR_Id[label=<<U>Id</U>>]; OR_Stu[label="StudentId (FK)"]; OR_Status[label="Status"]; OR_Total[label="TotalAmount"]; OR_Curr[label="Currency"];
+    ORDER -> {OR_Id OR_Stu OR_Status OR_Total OR_Curr} [arrowhead=none, color="#b9962e"];
+
+    OI_Id[label=<<U>Id</U>>]; OI_Order[label="OrderId (FK)"]; OI_Course[label="CourseId (FK)"]; OI_Price[label="Price"];
+    ORDERITEM -> {OI_Id OI_Order OI_Course OI_Price} [arrowhead=none, color="#b9962e"];
+
+    PA_Id[label=<<U>Id</U>>]; PA_Order[label="OrderId (FK)"]; PA_Amt[label="Amount"]; PA_Status[label="Status"]; PA_Curr[label="Currency"]; PA_Method[label="PaymentMethod"];
+    PAYMENT -> {PA_Id PA_Order PA_Amt PA_Status PA_Curr PA_Method} [arrowhead=none, color="#b9962e"];
+
+    IN_Id[label=<<U>Id</U>>]; IN_Pay[label="PaymentId (FK)"]; IN_Num[label="InvoiceNumber (UK)"]; IN_Amt[label="Amount"]; IN_Curr[label="Currency"];
+    INVOICE -> {IN_Id IN_Pay IN_Num IN_Amt IN_Curr} [arrowhead=none, color="#b9962e"];
+
+    CE_Id[label=<<U>Id</U>>]; CE_Stu[label="StudentId (FK)"]; CE_Course[label="CourseId (FK)"]; CE_Num[label="CertificateNumber (UK)"];
+    CERTIFICATE -> {CE_Id CE_Stu CE_Course CE_Num} [arrowhead=none, color="#b9962e"];
+
+    CP_Id[label=<<U>Id</U>>]; CP_Inst[label="InstructorId (FK)"]; CP_Course[label="CourseId (FK,null)"]; CP_Code[label="Code"]; CP_Type[label="DiscountType"]; CP_Val[label="DiscountValue"];
+    COUPON -> {CP_Id CP_Inst CP_Course CP_Code CP_Type CP_Val} [arrowhead=none, color="#b9962e"];
+
+    // ================= RELATIONSHIPS (arrows, 1 -> m) =================
+    edge [color="#1e5fbf", penwidth=1.6, arrowhead=vee, arrowsize=1.1, taillabel="1", labelfontcolor="#c1121f", labelfontsize=12, labeldistance=1.6];
+
+    // TPH inheritance (is-a)
+    edge [style=dashed, color="#6c757d", arrowhead=onormal, taillabel="", headlabel=""];
+    STUDENT    -> USER [label="is-a"];
+    INSTRUCTOR -> USER [label="is-a"];
+    ADMIN      -> USER [label="is-a"];
+    edge [style=solid, color="#1e5fbf", arrowhead=vee];
+
+    USER       -> USERSESSION    [taillabel="1", headlabel="m"];
+    CATEGORY   -> COURSE         [taillabel="1", headlabel="m"];
+    INSTRUCTOR -> COURSE         [taillabel="1", headlabel="m"];
+    INSTRUCTOR -> COUPON         [taillabel="1", headlabel="m"];
+    COURSE     -> SECTION        [taillabel="1", headlabel="m"];
+    SECTION    -> LESSON         [taillabel="1", headlabel="m"];
+    LESSON     -> QUIZ           [taillabel="1", headlabel="1"];
+    QUIZ       -> QUESTION       [taillabel="1", headlabel="m"];
+    QUESTION   -> ANSWER         [taillabel="1", headlabel="m"];
+
+    STUDENT    -> ENROLLMENT     [taillabel="1", headlabel="m"];
+    COURSE     -> ENROLLMENT     [taillabel="1", headlabel="m"];
+    ENROLLMENT -> LESSONPROGRESS [taillabel="1", headlabel="m"];
+    LESSON     -> LESSONPROGRESS [taillabel="1", headlabel="m"];
+
+    QUIZ       -> QUIZRESULT     [taillabel="1", headlabel="m"];
+    STUDENT    -> QUIZRESULT     [taillabel="1", headlabel="m"];
+    QUIZRESULT -> STUDENTANSWER  [taillabel="1", headlabel="m"];
+    QUESTION   -> STUDENTANSWER  [taillabel="1", headlabel="m"];
+    ANSWER     -> STUDENTANSWER  [taillabel="1", headlabel="m", style=dashed];
+
+    STUDENT    -> REVIEW         [taillabel="1", headlabel="m"];
+    COURSE     -> REVIEW         [taillabel="1", headlabel="m"];
+
+    STUDENT    -> ORDER          [taillabel="1", headlabel="m"];
+    ORDER      -> ORDERITEM      [taillabel="1", headlabel="m"];
+    COURSE     -> ORDERITEM      [taillabel="1", headlabel="m"];
+    ORDER      -> PAYMENT        [taillabel="1", headlabel="1"];
+    PAYMENT    -> INVOICE        [taillabel="1", headlabel="1"];
+
+    STUDENT    -> CERTIFICATE    [taillabel="1", headlabel="m"];
+    COURSE     -> CERTIFICATE    [taillabel="1", headlabel="m"];
+    COURSE     -> COUPON         [taillabel="1", headlabel="m", style=dashed];
+}

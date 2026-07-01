@@ -1,4 +1,4 @@
-using ELearningPlatform.Core.Entities;
+using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
 using iText.Kernel.Pdf;
 using iText.Layout;
@@ -50,6 +50,12 @@ public class CertificateService : ICertificateService
         return await _unitOfWork.Certificates.FindAsync(c =>
             c.StudentId == studentId && !c.IsDeleted
         );
+    }
+
+    public async Task<Certificate?> VerifyCertificateAsync(string verificationCode)
+    {
+        return await _unitOfWork.Certificates.FirstOrDefaultAsync(c =>
+            c.VerificationCode == verificationCode && !c.IsDeleted);
     }
 
     public async Task<Stream> GenerateCertificatePdfAsync(Certificate certificate)

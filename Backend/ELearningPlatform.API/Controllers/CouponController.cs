@@ -1,3 +1,6 @@
+using ELearningPlatform.Application;
+using ELearningPlatform.Application.DTOs.Coupons;
+using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,16 +29,16 @@ public class CouponController : ControllerBase
     [Authorize(Policy = "InstructorOnly")]
     public async Task<IActionResult> GetMyCoupons()
     {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
+        if (!TryGetUserId(out var userId)) return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         var coupons = await _couponService.GetInstructorCouponsAsync(userId);
-        return Ok(coupons);
+        return Ok(new GenericResponseDTO<object>(true, coupons));
     }
 
     [HttpPost]
     [Authorize(Policy = "InstructorOnly")]
     public async Task<IActionResult> Create([FromBody] CreateCouponRequest request)
     {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
+        if (!TryGetUserId(out var userId)) return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
 
         try
         {
@@ -44,11 +47,11 @@ public class CouponController : ControllerBase
                 request.MaxDiscountAmount, request.MaxUses, request.ExpiryDate,
                 userId, request.CourseId);
 
-            return CreatedAtAction(nameof(GetMyCoupons), coupon);
+            return CreatedAtAction(nameof(GetMyCoupons), new { id = coupon.Id }, new GenericResponseDTO<object>(true, coupon));
         }
         catch (InvalidOperationException ex)
         {
-            return Conflict(new { message = ex.Message });
+            return Conflict(new GenericResponseDTO<object>(false, ex.Message));
         }
     }
 
@@ -56,20 +59,20 @@ public class CouponController : ControllerBase
     [Authorize(Policy = "InstructorOnly")]
     public async Task<IActionResult> Deactivate(int id)
     {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
+        if (!TryGetUserId(out var userId)) return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         var ok = await _couponService.DeactivateCouponAsync(id, userId);
-        if (!ok) return NotFound(new { message = "Coupon not found or not owned by you." });
-        return Ok(new { message = "Coupon deactivated." });
+        if (!ok) return NotFound(new GenericResponseDTO<object>(false, "Coupon not found or not owned by you."));
+        return Ok(new GenericResponseDTO<object>(true, "Coupon deactivated."));
     }
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "InstructorOnly")]
     public async Task<IActionResult> Delete(int id)
     {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
+        if (!TryGetUserId(out var userId)) return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         var ok = await _couponService.DeleteCouponAsync(id, userId);
-        if (!ok) return NotFound(new { message = "Coupon not found or not owned by you." });
-        return NoContent();
+        if (!ok) return NotFound(new GenericResponseDTO<object>(false, "Coupon not found or not owned by you."));
+        return Ok(new GenericResponseDTO<object>(true, "Coupon deleted."));
     }
 
     [HttpPost("validate")]
@@ -77,23 +80,12 @@ public class CouponController : ControllerBase
     {
         var result = await _couponService.ValidateCouponAsync(request.Code, request.CourseId, request.OriginalPrice);
         if (!result.IsValid)
-            return BadRequest(new { message = result.ErrorMessage });
+            return BadRequest(new GenericResponseDTO<object>(false, result.ErrorMessage ?? "Invalid coupon"));
 
-        return Ok(new
+        return Ok(new GenericResponseDTO<object>(true, new
         {
             discountAmount = result.DiscountAmount,
             finalPrice = result.FinalPrice
-        });
+        }));
     }
 }
-
-public record CreateCouponRequest(
-    string Code,
-    string DiscountType,
-    decimal DiscountValue,
-    decimal? MaxDiscountAmount,
-    int? MaxUses,
-    DateTime? ExpiryDate,
-    int? CourseId);
-
-public record ValidateCouponRequest(string Code, int CourseId, decimal OriginalPrice);
