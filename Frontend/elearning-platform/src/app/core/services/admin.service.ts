@@ -109,6 +109,14 @@ export class AdminService {
     return this.http.put<{ profitPercentage: number }>(`${this.API_URL}/admin/profit-percentage`, { profitPercentage });
   }
 
+  getRefundPeriodDays(): Observable<{ refundPeriodDays: number }> {
+    return this.http.get<{ refundPeriodDays: number }>(`${this.API_URL}/admin/refund-period-days`);
+  }
+
+  updateRefundPeriodDays(refundPeriodDays: number): Observable<{ refundPeriodDays: number }> {
+    return this.http.put<{ refundPeriodDays: number }>(`${this.API_URL}/admin/refund-period-days`, { refundPeriodDays });
+  }
+
   deleteCourse(id: number): Observable<any> {
     return this.http.delete(`${this.API_URL}/courses/${id}`);
   }

@@ -36,14 +36,17 @@ public class EnrollmentService : IEnrollmentService
 
     public async Task<Enrollment> EnrollStudentAsync(int studentId, int courseId, decimal pricePaid)
     {
+        // Snapshot the platform settings in effect at purchase time so later admin
+        // changes never rewrite the profit or refund eligibility of past enrollments.
+        var owner = await GetOwnerAdminAsync();
+
         var enrollment = new Enrollment
         {
             StudentId = studentId,
             CourseId = courseId,
             PricePaid = pricePaid,
-            // Snapshot the platform profit share at purchase time so later rate
-            // changes never rewrite the profit of past enrollments.
-            AdminPercentage = await GetPlatformProfitPercentageAsync(),
+            AdminPercentage = owner?.ProfitPercentage ?? 0m,
+            RefundPeriodDays = owner?.RefundPeriodDays ?? 0,
             EnrolledAt = DateTime.UtcNow,
             CompletionPercentage = 0,
             CreatedAt = DateTime.UtcNow,
@@ -127,15 +130,13 @@ public class EnrollmentService : IEnrollmentService
     }
 
     /// <summary>
-    /// The single platform profit share = the owner admin's (lowest id) current
-    /// ProfitPercentage. This is the same value the admin edits in Settings and is
-    /// snapshotted onto each new enrollment.
+    /// The owner admin (lowest id) that holds the single platform settings — profit
+    /// share and refund period — snapshotted onto each new enrollment.
     /// </summary>
-    private async Task<decimal> GetPlatformProfitPercentageAsync()
+    private async Task<Admin?> GetOwnerAdminAsync()
     {
         var admins = await _unitOfWork.Users.FindAsync(u => u.Role == UserRoleEnum.Admin && !u.IsDeleted);
-        var owner = admins.OfType<Admin>().OrderBy(a => a.Id).FirstOrDefault();
-        return owner?.ProfitPercentage ?? 0m;
+        return admins.OfType<Admin>().OrderBy(a => a.Id).FirstOrDefault();
     }
 
 

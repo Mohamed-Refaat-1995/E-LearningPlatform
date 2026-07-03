@@ -175,5 +175,34 @@
         }
       </div>
     </div>
+
+    <!-- Refund settings (admin only) -->
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-2xl">↩️</span>
+        <h3 class="font-semibold text-gray-800">Refund Settings</h3>
+      </div>
+      <p class="text-sm text-gray-500 mb-4">
+        Maximum number of days after enrollment during which a course can be refunded, for <strong>all courses</strong>
+        (up to {{ maxRefundPeriodDays }} days; set to 0 to disable refunds).
+        Changing this only affects <strong>new enrollments</strong> — past sales keep the refund window that applied when they were purchased.
+      </p>
+
+      <div class="flex items-center gap-3">
+        <div class="relative w-48">
+          <input [(ngModel)]="refundPeriodDays" type="number" min="0" [max]="maxRefundPeriodDays" step="1"
+                 class="w-full border border-gray-300 rounded-lg px-3 py-2 pr-14 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">days</span>
+        </div>
+        <button (click)="saveRefundPeriod()" [disabled]="savingRefund"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors">
+          {{ savingRefund ? 'Saving…' : 'Save' }}
+        </button>
+        @if (refundMsg) {
+          <span [class]="refundMsg.type === 'success' ? 'text-green-600' : 'text-red-600'"
+                class="text-sm font-medium">{{ refundMsg.text }}</span>
+        }
+      </div>
+    </div>
   }
 </div>

@@ -45,3 +45,8 @@ public class UpdateProfitPercentageRequest
 {
     public decimal ProfitPercentage { get; set; }
 }
+
+public class UpdateRefundPeriodRequest
+{
+    public int RefundPeriodDays { get; set; }
+}

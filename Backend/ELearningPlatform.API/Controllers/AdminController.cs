@@ -201,6 +201,45 @@ public class AdminController : ControllerBase
             "Profit percentage updated successfully"));
     }
 
+    /// <summary>Returns the platform maximum refund period in days.</summary>
+    [HttpGet("refund-period-days")]
+    public async Task<IActionResult> GetRefundPeriodDays()
+    {
+        var admin = await GetOwnerAdminAsync();
+        if (admin == null)
+        {
+            return NotFound(new GenericResponseDTO<object>(false, "Admin not found"));
+        }
+
+        return Ok(new GenericResponseDTO<object>(true, new { refundPeriodDays = admin.RefundPeriodDays }));
+    }
+
+    /// <summary>
+    /// Updates the platform maximum refund period (0–365 days). Only affects future
+    /// enrollments — existing enrollments keep their snapshotted refund window.
+    /// </summary>
+    [HttpPut("refund-period-days")]
+    public async Task<IActionResult> UpdateRefundPeriodDays([FromBody] UpdateRefundPeriodRequest request)
+    {
+        if (request.RefundPeriodDays < 0 || request.RefundPeriodDays > 365)
+        {
+            return BadRequest(new GenericResponseDTO<object>(false, "Refund period must be between 0 and 365 days."));
+        }
+
+        var admin = await GetOwnerAdminAsync();
+        if (admin == null)
+        {
+            return NotFound(new GenericResponseDTO<object>(false, "Admin not found"));
+        }
+
+        admin.RefundPeriodDays = request.RefundPeriodDays;
+        admin.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new GenericResponseDTO<object>(true, new { refundPeriodDays = admin.RefundPeriodDays },
+            "Refund period updated successfully"));
+    }
+
     /// <summary>The single platform-rate owner = the admin with the lowest id.</summary>
     private Task<Admin?> GetOwnerAdminAsync() =>
         _db.Admins.OrderBy(a => a.Id).FirstOrDefaultAsync();

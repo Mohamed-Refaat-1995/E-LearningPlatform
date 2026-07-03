@@ -15,6 +15,13 @@ public class Enrollment : BaseEntity
     /// </summary>
     public decimal AdminPercentage { get; set; }
 
+    /// <summary>
+    /// Max refund window (days after <see cref="EnrolledAt"/>) captured at purchase
+    /// time from the admin's platform setting, so later changes to the admin's
+    /// refund period don't alter the eligibility of existing enrollments.
+    /// </summary>
+    public int RefundPeriodDays { get; set; }
+
     public DateTime EnrolledAt { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAt { get; set; }
     public decimal CompletionPercentage { get; set; }

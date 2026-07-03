@@ -31,9 +31,11 @@ public class RefundService : IRefundService
         DateTime? refundDeadline = null;
         bool isEligible = false;
 
-        if (course.RefundPeriodDays.HasValue && course.RefundPeriodDays > 0)
+        // Uses the refund window snapshotted onto the enrollment at purchase time,
+        // so changing the admin's refund period does not affect existing enrollments.
+        if (enrollment.RefundPeriodDays > 0)
         {
-            refundDeadline = enrollment.EnrolledAt.AddDays(course.RefundPeriodDays.Value);
+            refundDeadline = enrollment.EnrolledAt.AddDays(enrollment.RefundPeriodDays);
             isEligible = !enrollment.IsRefunded && DateTime.UtcNow <= refundDeadline;
         }
 
@@ -44,7 +46,7 @@ public class RefundService : IRefundService
             enrollment.PricePaid,
             enrollment.EnrolledAt,
             refundDeadline,
-            course.RefundPeriodDays,
+            enrollment.RefundPeriodDays,
             enrollment.IsRefunded
         );
 
@@ -72,12 +74,12 @@ public class RefundService : IRefundService
             return (false, "Course not found");
         }
 
-        if (!course.RefundPeriodDays.HasValue || course.RefundPeriodDays <= 0)
+        if (enrollment.RefundPeriodDays <= 0)
         {
             return (false, "This course does not offer refunds");
         }
 
-        var refundDeadline = enrollment.EnrolledAt.AddDays(course.RefundPeriodDays.Value);
+        var refundDeadline = enrollment.EnrolledAt.AddDays(enrollment.RefundPeriodDays);
         if (DateTime.UtcNow > refundDeadline)
         {
             return (false, $"Refund period has expired. Refunds were accepted until {refundDeadline:yyyy-MM-dd}");

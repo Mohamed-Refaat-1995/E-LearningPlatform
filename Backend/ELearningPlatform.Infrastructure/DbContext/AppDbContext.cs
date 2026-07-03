@@ -328,6 +328,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             Role = UserRoleEnum.Admin,
             IsEmailVerified = true,
             IsActive = true,
+            RefundPeriodDays = 14,
             CreatedAt = seedDate,
             UpdatedAt = seedDate
         });

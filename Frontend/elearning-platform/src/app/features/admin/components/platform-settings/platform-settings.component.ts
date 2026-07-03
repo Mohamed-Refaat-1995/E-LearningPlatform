@@ -42,6 +42,12 @@ export class PlatformSettingsComponent implements OnInit, OnDestroy {
   savingProfit = false;
   profitMsg: Msg | null = null;
 
+  // Refund period
+  readonly maxRefundPeriodDays = 365;
+  refundPeriodDays = 0;
+  savingRefund = false;
+  refundMsg: Msg | null = null;
+
   // Current sessions
   sessions: UserSession[] = [];
   loadingSessions = false;
@@ -64,7 +70,39 @@ export class PlatformSettingsComponent implements OnInit, OnDestroy {
     this.preventCredentialSave = localStorage.getItem(PREVENT_CREDENTIAL_SAVE_KEY) === 'true';
     this.loadProfile();
     this.loadProfitPercentage();
+    this.loadRefundPeriod();
     this.loadSessions();
+  }
+
+  loadRefundPeriod(): void {
+    this.adminService.getRefundPeriodDays()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: res => { this.refundPeriodDays = res?.refundPeriodDays ?? 0; },
+        error: () => {}
+      });
+  }
+
+  saveRefundPeriod(): void {
+    this.refundMsg = null;
+    if (this.refundPeriodDays < 0 || this.refundPeriodDays > this.maxRefundPeriodDays) {
+      this.refundMsg = { text: `Refund period must be between 0 and ${this.maxRefundPeriodDays} days.`, type: 'error' };
+      return;
+    }
+    this.savingRefund = true;
+    this.adminService.updateRefundPeriodDays(this.refundPeriodDays)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: res => {
+          this.refundPeriodDays = res?.refundPeriodDays ?? this.refundPeriodDays;
+          this.refundMsg = { text: 'Refund period updated successfully.', type: 'success' };
+          this.savingRefund = false;
+        },
+        error: (err) => {
+          this.refundMsg = { text: err?.error?.message || 'Failed to update refund period.', type: 'error' };
+          this.savingRefund = false;
+        }
+      });
   }
 
   loadSessions(): void {
