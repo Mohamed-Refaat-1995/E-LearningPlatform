@@ -26,7 +26,7 @@ export class AppComponent implements OnInit {
       .pipe(filter(e => e instanceof NavigationEnd))
       .subscribe((e: NavigationEnd) => {
         const url = e.urlAfterRedirects;
-        this.showLayout = !this.HIDDEN_LAYOUT_PREFIXES.some(p => url.startsWith(p));
+        this.showLayout = !this.HIDDEN_LAYOUT_PREFIXES.some(p => url === p || url.startsWith(p + '/'));
       });
   }
 }

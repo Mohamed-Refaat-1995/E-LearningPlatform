@@ -1,0 +1,81 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="mb-6">
+      <a routerLink="/instructor" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">← Dashboard</a>
+      <h1 class="text-3xl font-bold text-gray-900 mt-2">My Students</h1>
+      <p class="text-gray-500 mt-1">Everyone enrolled across your courses</p>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="flex flex-wrap items-center gap-3 mb-4 bg-white border border-gray-200 rounded-xl p-3">
+      <input type="text" [(ngModel)]="search" (ngModelChange)="onSearchChange()"
+        placeholder="Search student or course..."
+        class="flex-1 min-w-[180px] px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+      <select [(ngModel)]="isRefundedFilter" (ngModelChange)="onFilterChange()"
+        class="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <option value="all">All enrollments</option>
+        <option value="false">Active</option>
+        <option value="true">Refunded</option>
+      </select>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+          <tr>
+            <th class="text-left px-4 py-3 cursor-pointer" (click)="sortByColumn('name')">Student {{ sortIcon('name') }}</th>
+            <th class="text-left px-4 py-3">Course</th>
+            <th class="text-left px-4 py-3 cursor-pointer" (click)="sortByColumn('completion')">Completion {{ sortIcon('completion') }}</th>
+            <th class="text-left px-4 py-3">Status</th>
+            <th class="text-left px-4 py-3 cursor-pointer" (click)="sortByColumn('enrolledat')">Enrolled {{ sortIcon('enrolledat') }}</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          @if (loading) {
+            <tr><td colspan="5" class="text-center py-10 text-gray-400">Loading...</td></tr>
+          }
+          @if (!loading && rows.length === 0) {
+            <tr><td colspan="5" class="text-center py-10 text-gray-400">No students found.</td></tr>
+          }
+          @for (row of rows; track row.enrollmentId) {
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3">
+                <p class="font-medium text-gray-900">{{ row.studentName }}</p>
+                <p class="text-xs text-gray-400">{{ row.studentEmail }}</p>
+              </td>
+              <td class="px-4 py-3 text-gray-700">{{ row.courseTitle }}</td>
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-24 bg-gray-100 rounded-full h-2">
+                    <div class="bg-indigo-500 h-2 rounded-full" [style.width.%]="row.completionPercentage"></div>
+                  </div>
+                  <span class="text-xs text-gray-500">{{ row.completionPercentage | number:'1.0-0' }}%</span>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+                  [class.bg-emerald-100]="!row.isRefunded" [class.text-emerald-700]="!row.isRefunded"
+                  [class.bg-red-100]="row.isRefunded" [class.text-red-700]="row.isRefunded">
+                  {{ row.isRefunded ? 'Refunded' : 'Active' }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-gray-500">{{ row.enrolledAt | date:'mediumDate' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      @if (totalPages > 1) {
+        <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm">
+          <span class="text-gray-500">Page {{ page }} of {{ totalPages }} · {{ totalCount }} total</span>
+          <div class="flex items-center gap-2">
+            <button (click)="goToPage(page - 1)" [disabled]="page <= 1"
+              class="px-3 py-1.5 rounded-lg border border-gray-200 font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50">Prev</button>
+            <button (click)="goToPage(page + 1)" [disabled]="page >= totalPages"
+              class="px-3 py-1.5 rounded-lg border border-gray-200 font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50">Next</button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

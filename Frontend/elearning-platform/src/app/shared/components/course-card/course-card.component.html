@@ -1,4 +1,4 @@
-<a [routerLink]="['/courses', course.id]" class="block w-72 shrink-0 group">
+<a [routerLink]="['/courses', course.id]" (click)="onCardClick($event)" class="block w-72 shrink-0 group">
   <div class="aspect-video w-full rounded-md overflow-hidden bg-gray-200 mb-2">
     <img *ngIf="course.thumbnailUrl"
          [src]="course.thumbnailUrl"

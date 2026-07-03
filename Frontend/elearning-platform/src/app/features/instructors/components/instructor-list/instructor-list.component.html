@@ -1,0 +1,48 @@
+<div class="min-h-screen bg-white dark:bg-gray-900">
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Our Instructors</h1>
+    <p class="text-gray-600 dark:text-gray-400 mb-8">Learn from experienced instructors teaching on the platform.</p>
+
+    <div *ngIf="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div *ngFor="let _ of [1,2,3,4,5,6]" class="animate-pulse border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+        <div class="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 mb-4"></div>
+        <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-2"></div>
+        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+      </div>
+    </div>
+
+    <div *ngIf="!loading && error" class="text-center text-red-600 py-12">{{ error }}</div>
+
+    <div *ngIf="!loading && !error && instructors.length === 0" class="text-center text-gray-500 py-12">
+      No instructors to show yet.
+    </div>
+
+    <div *ngIf="!loading && !error && instructors.length > 0"
+         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <a *ngFor="let instructor of instructors"
+         [routerLink]="['/instructors', instructor.id]"
+         class="block border border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-500 transition-all">
+        <div class="flex items-center gap-4 mb-4">
+          <img *ngIf="instructor.profileImageUrl" [src]="instructor.profileImageUrl" [alt]="instructor.fullName"
+               class="w-16 h-16 rounded-full object-cover" />
+          <div *ngIf="!instructor.profileImageUrl"
+               class="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg">
+            {{ initials(instructor.fullName) }}
+          </div>
+          <div>
+            <h2 class="font-bold text-gray-900 dark:text-white leading-tight">{{ instructor.fullName }}</h2>
+            <div class="flex items-center gap-1 text-sm">
+              <span class="text-yellow-500">{{ stars(instructor.averageRating) }}</span>
+              <span class="text-gray-500 dark:text-gray-400">({{ instructor.averageRating | number:'1.1-1' }})</span>
+            </div>
+          </div>
+        </div>
+        <p *ngIf="instructor.bio" class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-4">{{ instructor.bio }}</p>
+        <div class="flex gap-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-3">
+          <span>{{ instructor.courseCount }} course{{ instructor.courseCount === 1 ? '' : 's' }}</span>
+          <span>{{ instructor.totalStudents }} student{{ instructor.totalStudents === 1 ? '' : 's' }}</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>

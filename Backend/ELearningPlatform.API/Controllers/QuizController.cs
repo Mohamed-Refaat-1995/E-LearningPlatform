@@ -2,7 +2,6 @@ using ELearningPlatform.Application;
 using ELearningPlatform.Application.DTOs.Quizzes;
 using ELearningPlatform.Core;
 using Microsoft.AspNetCore.Authorization;
-using System;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 
@@ -28,22 +27,80 @@ public class QuizController : ControllerBase
         return int.TryParse(User.FindFirst("userId")?.Value, out userId);
     }
 
-    private async Task<bool> IsStudentEnrolledAsync(int studentId, int courseId)
+    private async Task<(Lesson? lesson, Section? section, Course? course)> ResolveLessonChainAsync(int lessonId)
     {
-        var enrollment = await _unitOfWork.Enrollments.FirstOrDefaultAsync(e =>
-            e.StudentId == studentId && e.CourseId == courseId && !e.IsDeleted);
-        return enrollment != null;
+        var lesson = await _unitOfWork.Lessons.GetByIdAsync(lessonId);
+        if (lesson == null)
+        {
+            return (null, null, null);
+        }
+
+        var section = await _unitOfWork.Sections.GetByIdAsync(lesson.SectionId);
+        if (section == null)
+        {
+            return (lesson, null, null);
+        }
+
+        var course = await _unitOfWork.Courses.GetByIdAsync(section.CourseId);
+        return (lesson, section, course);
     }
 
-    private async Task<bool> CanManageCourseAsync(int courseId, int userId)
+    private async Task<bool> CanManageLessonAsync(int lessonId, int userId)
     {
         if (User.IsInRole("Admin"))
         {
             return true;
         }
 
-        var course = await _unitOfWork.Courses.FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted);
+        var (_, _, course) = await ResolveLessonChainAsync(lessonId);
         return course != null && course.InstructorId == userId;
+    }
+
+    private async Task<(bool canManage, Quiz? quiz, int courseId)> CanManageQuizAsync(int quizId, int userId)
+    {
+        var quiz = await _quizService.GetQuizByIdAsync(quizId);
+        if (quiz == null)
+        {
+            return (false, null, 0);
+        }
+
+        if (!quiz.LessonId.HasValue)
+        {
+            return (false, quiz, 0);
+        }
+
+        var (_, section, course) = await ResolveLessonChainAsync(quiz.LessonId.Value);
+        if (course == null)
+        {
+            return (false, quiz, 0);
+        }
+
+        var canManage = User.IsInRole("Admin") || course.InstructorId == userId;
+        return (canManage, quiz, course.Id);
+    }
+
+    private async Task<bool> IsStudentEnrolledInQuizCourseAsync(int studentId, int quizId)
+    {
+        var quiz = await _quizService.GetQuizByIdAsync(quizId);
+        if (quiz == null)
+        {
+            return false;
+        }
+
+        if (!quiz.LessonId.HasValue)
+        {
+            return false;
+        }
+
+        var (_, _, course) = await ResolveLessonChainAsync(quiz.LessonId.Value);
+        if (course == null)
+        {
+            return false;
+        }
+
+        var enrollment = await _unitOfWork.Enrollments.FirstOrDefaultAsync(e =>
+            e.StudentId == studentId && e.CourseId == course.Id && !e.IsDeleted);
+        return enrollment != null;
     }
 
     private async Task<object> BuildQuizDetailAsync(Quiz quiz, bool hideCorrectAnswers)
@@ -62,7 +119,7 @@ public class QuizController : ControllerBase
                 question.Id,
                 question.QuizId,
                 question.QuestionText,
-                question.QuestionType,
+                QuestionType = question.QuestionType.ToString(),
                 question.Points,
                 question.DisplayOrder,
                 Answers = answers.Select(a => new
@@ -81,7 +138,7 @@ public class QuizController : ControllerBase
             quiz.Id,
             quiz.Title,
             quiz.Description,
-            //quiz.CourseId,
+            quiz.LessonId,
             quiz.TimeLimit,
             quiz.PassingScore,
             quiz.IsPublished,
@@ -93,11 +150,23 @@ public class QuizController : ControllerBase
     // ─── Quiz CRUD ───────────────────────────────────────────────────────────
 
     [HttpGet]
-    public async Task<IActionResult> GetQuizzes([FromQuery] int? courseId)
+    public async Task<IActionResult> GetQuizzes([FromQuery] int? courseId, [FromQuery] int? lessonId)
     {
+        if (lessonId.HasValue)
+        {
+            var quiz = await _quizService.GetLessonQuizAsync(lessonId.Value);
+            return quiz == null
+                ? Ok(new GenericResponseDTO<object>(true, null))
+                : TryGetUserId(out var uid) && await CanManageLessonAsync(lessonId.Value, uid)
+                ? Ok(new GenericResponseDTO<object>(true, await BuildQuizDetailAsync(quiz, hideCorrectAnswers: false)))
+                : !quiz.IsPublished
+                ? Ok(new GenericResponseDTO<object>(true, null))
+                : Ok(new GenericResponseDTO<object>(true, await BuildQuizDetailAsync(quiz, hideCorrectAnswers: true)));
+        }
+
         if (!courseId.HasValue)
         {
-            return BadRequest(new GenericResponseDTO<object>(false, "courseId is required"));
+            return BadRequest(new GenericResponseDTO<object>(false, "courseId or lessonId is required"));
         }
 
         if (User.Identity?.IsAuthenticated == true && TryGetUserId(out var userId) &&
@@ -111,32 +180,33 @@ public class QuizController : ControllerBase
         return Ok(new GenericResponseDTO<object>(true, quizzes));
     }
 
+    private async Task<bool> CanManageCourseAsync(int courseId, int userId)
+    {
+        if (User.IsInRole("Admin"))
+        {
+            return true;
+        }
+
+        var course = await _unitOfWork.Courses.FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted);
+        return course != null && course.InstructorId == userId;
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetQuizById(int id)
     {
         var quiz = await _quizService.GetQuizByIdAsync(id);
-        if (quiz == null)
-        {
-            return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
-        }
-
-        if (User.Identity?.IsAuthenticated == true && TryGetUserId(out var callerId)) //&&
-            //await CanManageCourseAsync(quiz.CourseId, callerId))
-        {
-            return Ok(new GenericResponseDTO<object>(true, await BuildQuizDetailAsync(quiz, hideCorrectAnswers: false)));
-        }
-
-        if (!quiz.IsPublished)
-            return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
-
-        if (!TryGetUserId(out var studentId))
-            return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
-
-        // Enrollment check temporarily disabled (CourseId not available on Quiz entity)
-        // if (!await IsStudentEnrolledAsync(studentId, quiz.CourseId))
-        //     return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
-
-        return Ok(new GenericResponseDTO<object>(true, await BuildQuizDetailAsync(quiz, hideCorrectAnswers: true)));
+        return quiz == null
+            ? NotFound(new GenericResponseDTO<object>(false, "Quiz not found"))
+            : User.Identity?.IsAuthenticated == true && TryGetUserId(out var callerId) &&
+            quiz.LessonId.HasValue && await CanManageLessonAsync(quiz.LessonId.Value, callerId)
+            ? Ok(new GenericResponseDTO<object>(true, await BuildQuizDetailAsync(quiz, hideCorrectAnswers: false)))
+            : !quiz.IsPublished
+            ? NotFound(new GenericResponseDTO<object>(false, "Quiz not found"))
+            : !TryGetUserId(out var studentId)
+            ? Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"))
+            : !await IsStudentEnrolledInQuizCourseAsync(studentId, id)
+            ? StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"))
+            : (IActionResult)Ok(new GenericResponseDTO<object>(true, await BuildQuizDetailAsync(quiz, hideCorrectAnswers: true)));
     }
 
     [HttpPost]
@@ -148,10 +218,10 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var course = await _unitOfWork.Courses.FirstOrDefaultAsync(c => c.Id == request.CourseId && !c.IsDeleted);
-        if (course == null)
+        var (lesson, _, course) = await ResolveLessonChainAsync(request.LessonId);
+        if (lesson == null || course == null)
         {
-            return NotFound(new GenericResponseDTO<object>(false, "Course not found"));
+            return NotFound(new GenericResponseDTO<object>(false, "Lesson not found"));
         }
 
         if (course.InstructorId != userId && !User.IsInRole("Admin"))
@@ -159,11 +229,18 @@ public class QuizController : ControllerBase
             return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
         }
 
+        var existingQuiz = await _quizService.GetLessonQuizAsync(request.LessonId);
+        if (existingQuiz != null)
+        {
+            return Conflict(new GenericResponseDTO<object>(false, new { quizId = existingQuiz.Id },
+                "This lesson already has a quiz. Edit the existing quiz instead."));
+        }
+
         var quiz = new Quiz
         {
             Title = request.Title,
             Description = request.Description,
-            //CourseId = request.CourseId,
+            LessonId = request.LessonId,
             TimeLimit = request.TimeLimit,
             PassingScore = request.PassingScore,
             DisplayOrder = request.DisplayOrder,
@@ -184,13 +261,15 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var existing = await _quizService.GetQuizByIdAsync(id);
+        var (canManage, existing, _) = await CanManageQuizAsync(id, userId);
         if (existing == null)
         {
             return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
         }
-
-        // Course checks temporarily disabled (CourseId not available on Quiz entity)
+        if (!canManage)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
         existing.Title = request.Title;
         existing.Description = request.Description;
@@ -211,15 +290,27 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var existing = await _quizService.GetQuizByIdAsync(id);
+        var (canManage, existing, _) = await CanManageQuizAsync(id, userId);
         if (existing == null)
         {
             return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
         }
+        if (!canManage)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
-        // Course checks temporarily disabled (CourseId not available on Quiz entity)
+        var willPublish = !existing.IsPublished;
+        if (willPublish)
+        {
+            var readinessError = await _quizService.ValidatePublishReadinessAsync(id);
+            if (readinessError != null)
+            {
+                return BadRequest(new GenericResponseDTO<object>(false, readinessError));
+            }
+        }
 
-        existing.IsPublished = !existing.IsPublished;
+        existing.IsPublished = willPublish;
         existing.UpdatedAt = DateTime.UtcNow;
 
         await _quizService.UpdateQuizAsync(existing);
@@ -236,13 +327,15 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var existing = await _quizService.GetQuizByIdAsync(id);
+        var (canManage, existing, _) = await CanManageQuizAsync(id, userId);
         if (existing == null)
         {
             return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
         }
-
-        // Course checks temporarily disabled (CourseId not available on Quiz entity)
+        if (!canManage)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
         await _quizService.DeleteQuizAsync(id);
         return Ok(new GenericResponseDTO<object>(true, "Quiz deleted successfully"));
@@ -259,25 +352,31 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var quiz = await _quizService.GetQuizByIdAsync(quizId);
+        var (canManage, quiz, _) = await CanManageQuizAsync(quizId, userId);
         if (quiz == null)
         {
             return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
         }
+        if (!canManage)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
-        // Course checks temporarily disabled (CourseId not available on Quiz entity)
+        if (!Enum.TryParse<QuestionTypeEnum>(dto.QuestionType, ignoreCase: true, out var questionType))
+        {
+            return BadRequest(new GenericResponseDTO<object>(false, "Invalid question type. Use 'MultipleChoice' or 'TrueFalse'."));
+        }
 
         try
         {
-            // Note: QuestionTypeEnum is expected by service; conversion temporarily disabled.
             var question = await _quizService.AddQuestionAsync(
-                quizId, dto.QuestionText, /*dto.QuestionType*/ default, dto.Points, dto.DisplayOrder);
+                quizId, dto.QuestionText, questionType, dto.Points, dto.DisplayOrder);
             return CreatedAtAction(nameof(GetQuizById), new { id = quizId }, new GenericResponseDTO<object>(true, new
             {
                 question.Id,
                 question.QuizId,
                 question.QuestionText,
-                question.QuestionType,
+                QuestionType = question.QuestionType.ToString(),
                 question.Points,
                 question.DisplayOrder
             }, "Question added successfully"));
@@ -297,13 +396,15 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var quiz = await _quizService.GetQuizByIdAsync(quizId);
+        var (canManage, quiz, _) = await CanManageQuizAsync(quizId, userId);
         if (quiz == null)
         {
             return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
         }
-
-        // Course checks temporarily disabled (CourseId not available on Quiz entity)
+        if (!canManage)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
         var question = await _unitOfWork.Questions.FirstOrDefaultAsync(q =>
             q.Id == questionId && q.QuizId == quizId && !q.IsDeleted);
@@ -312,11 +413,15 @@ public class QuizController : ControllerBase
             return NotFound(new GenericResponseDTO<object>(false, "Question not found"));
         }
 
+        if (!Enum.TryParse<QuestionTypeEnum>(dto.QuestionType, ignoreCase: true, out var questionType))
+        {
+            return BadRequest(new GenericResponseDTO<object>(false, "Invalid question type. Use 'MultipleChoice' or 'TrueFalse'."));
+        }
+
         try
         {
-            // Note: QuestionTypeEnum is expected by service; conversion temporarily disabled.
             await _quizService.UpdateQuestionAsync(
-                questionId, dto.QuestionText, /*dto.QuestionType*/ default, dto.Points, dto.DisplayOrder);
+                questionId, dto.QuestionText, questionType, dto.Points, dto.DisplayOrder);
             return Ok(new GenericResponseDTO<object>(true, new
             {
                 question.Id,
@@ -342,13 +447,15 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var quiz = await _quizService.GetQuizByIdAsync(quizId);
+        var (canManage, quiz, _) = await CanManageQuizAsync(quizId, userId);
         if (quiz == null)
         {
             return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
         }
-
-        // Course checks temporarily disabled (CourseId not available on Quiz entity)
+        if (!canManage)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
         var question = await _unitOfWork.Questions.FirstOrDefaultAsync(q =>
             q.Id == questionId && q.QuizId == quizId && !q.IsDeleted);
@@ -372,13 +479,15 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var quiz = await _quizService.GetQuizByIdAsync(quizId);
+        var (canManage, quiz, _) = await CanManageQuizAsync(quizId, userId);
         if (quiz == null)
         {
             return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
         }
-
-        // Course checks temporarily disabled (CourseId not available on Quiz entity)
+        if (!canManage)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
         var question = await _unitOfWork.Questions.FirstOrDefaultAsync(q =>
             q.Id == questionId && q.QuizId == quizId && !q.IsDeleted);
@@ -415,13 +524,15 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var quiz = await _quizService.GetQuizByIdAsync(quizId);
+        var (canManage, quiz, _) = await CanManageQuizAsync(quizId, userId);
         if (quiz == null)
         {
             return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
         }
-
-        // Course checks temporarily disabled (CourseId not available on Quiz entity)
+        if (!canManage)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
         var question = await _unitOfWork.Questions.FirstOrDefaultAsync(q =>
             q.Id == questionId && q.QuizId == quizId && !q.IsDeleted);
@@ -465,13 +576,15 @@ public class QuizController : ControllerBase
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
         }
 
-        var quiz = await _quizService.GetQuizByIdAsync(quizId);
+        var (canManage, quiz, _) = await CanManageQuizAsync(quizId, userId);
         if (quiz == null)
         {
             return NotFound(new GenericResponseDTO<object>(false, "Quiz not found"));
         }
-
-        // Course checks temporarily disabled (CourseId not available on Quiz entity)
+        if (!canManage)
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
 
         var answer = await _unitOfWork.Answers.FirstOrDefaultAsync(a =>
             a.Id == answerId && a.QuestionId == questionId && !a.IsDeleted);
@@ -480,8 +593,15 @@ public class QuizController : ControllerBase
             return NotFound(new GenericResponseDTO<object>(false, "Answer not found"));
         }
 
-        await _quizService.DeleteAnswerAsync(answerId);
-        return Ok(new GenericResponseDTO<object>(true, "Answer deleted successfully"));
+        try
+        {
+            await _quizService.DeleteAnswerAsync(answerId);
+            return Ok(new GenericResponseDTO<object>(true, "Answer deleted successfully"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new GenericResponseDTO<object>(false, ex.Message));
+        }
     }
 
     // ─── Student: Submit & Results ───────────────────────────────────────────
@@ -553,10 +673,9 @@ public class QuizController : ControllerBase
             PassingScore = quiz?.PassingScore,
             result.StudentId,
             result.Score,
-            // MaxScore, Percentage, IsPassed temporarily disabled - not present on QuizResult
-            // result.MaxScore,
-            // result.Percentage,
-            // result.IsPassed,
+            result.MaxScore,
+            result.Percentage,
+            result.IsPassed,
             result.TimeSpentSeconds,
             result.TakenAt,
             StudentAnswers = answerDetails
@@ -569,6 +688,11 @@ public class QuizController : ControllerBase
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
+        }
+
+        if (!await IsStudentEnrolledInQuizCourseAsync(userId, id))
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "You must be enrolled in this course to take the quiz"));
         }
 
         var answers = new Dictionary<int, int?>();

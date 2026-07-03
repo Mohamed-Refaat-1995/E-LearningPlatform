@@ -29,6 +29,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<StudentAnswer> StudentAnswers { get; set; } = null!;
     public DbSet<QuizResult> QuizResults { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
+    public DbSet<ReviewReaction> ReviewReactions { get; set; } = null!;
     public DbSet<Payment> Payments { get; set; } = null!;
     public DbSet<Invoice> Invoices { get; set; } = null!;
     public DbSet<Certificate> Certificates { get; set; } = null!;
@@ -36,6 +37,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<Coupon> Coupons { get; set; } = null!;
     public DbSet<UserSession> UserSessions { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +56,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         ConfigureStudentAnswerEntity(modelBuilder);
         ConfigureQuizResultEntity(modelBuilder);
         ConfigureReviewEntity(modelBuilder);
+        ConfigureReviewReactionEntity(modelBuilder);
         ConfigurePaymentEntity(modelBuilder);
         ConfigureInvoiceEntity(modelBuilder);
         ConfigureCertificateEntity(modelBuilder);
@@ -61,6 +64,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         ConfigureOrderItemEntity(modelBuilder);
         ConfigureCouponEntity(modelBuilder);
         ConfigureUserSessionEntity(modelBuilder);
+        ConfigureNotificationEntity(modelBuilder);
 
         foreach (var fk in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()))
         {
@@ -179,6 +183,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.QuestionText).IsRequired();
             entity.HasMany(e => e.Answers).WithOne(a => a.Question).HasForeignKey(a => a.QuestionId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.CorrectAnswer).WithMany().HasForeignKey(e => e.CorrectAnswerId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -218,6 +223,18 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.Property(e => e.Title).IsRequired().HasMaxLength(256);
             entity.HasIndex(e => new { e.CourseId, e.StudentId }).IsUnique();
             entity.HasOne(e => e.Student).WithMany(s => s.Reviews).HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private void ConfigureReviewReactionEntity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ReviewReaction>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Emoji).IsRequired().HasMaxLength(16);
+            entity.HasIndex(e => new { e.ReviewId, e.UserId }).IsUnique();
+            entity.HasOne(e => e.Review).WithMany(r => r.Reactions).HasForeignKey(e => e.ReviewId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -297,6 +314,19 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
                   .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.Instructor).WithMany().HasForeignKey(e => e.InstructorId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private void ConfigureNotificationEntity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Course).WithMany().HasForeignKey(e => e.CourseId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
     }
 

@@ -15,7 +15,7 @@ public interface IAuthService
     Task<(bool Success, string Message)> ResetPasswordByTokenAsync(string token, string newPassword);
 
     // Google OAuth
-    Task<(bool Success, string Message, string? Token, string? RefreshToken, int? UserId, string? Role)> GoogleLoginAsync(string idToken, string? userAgent = null, string? ipAddress = null);
+    Task<(bool Success, string Message, string? Token, string? RefreshToken, int? UserId, string? Role, string? Email)> GoogleLoginAsync(string idToken, int? role = null, string? userAgent = null, string? ipAddress = null);
 
     string GenerateJwtToken(int userId, string email, string role, string? sessionId = null);
     string GenerateRefreshToken();

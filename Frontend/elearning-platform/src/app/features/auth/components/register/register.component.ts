@@ -19,6 +19,8 @@ export class RegisterComponent implements OnInit, AfterViewInit {
   loading = false;
   error: string | null = null;
   success: string | null = null;
+  showPassword = false;
+  showConfirmPassword = false;
 
   userTypes = [
     { value: 'student', label: 'Student' },
@@ -38,7 +40,7 @@ export class RegisterComponent implements OnInit, AfterViewInit {
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6), Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/)]],
       confirmPassword: ['', [Validators.required]],
-      userType: ['student', Validators.required],
+      userType: ['', Validators.required],
       agreeTerms: [false, [Validators.requiredTrue]]
     }, { validators: this.passwordMatchValidator });
   }
@@ -62,10 +64,25 @@ export class RegisterComponent implements OnInit, AfterViewInit {
     }
   }
 
+  /** Whether the user has explicitly picked Student/Instructor yet. */
+  get roleSelected(): boolean {
+    return !!this.registerForm?.get('userType')?.value;
+  }
+
   private handleGoogleCredential(response: any): void {
+    const userType = this.registerForm?.get('userType')?.value;
+    if (!userType) {
+      // Defense in depth: the button overlay should already prevent this click,
+      // but never create an account without an explicit role choice.
+      this.registerForm.get('userType')?.markAsTouched();
+      this.error = 'Please select whether you are a Student or an Instructor first.';
+      return;
+    }
+
     this.loading = true;
     this.error = null;
-    this.authService.googleLogin(response.credential).subscribe({
+    const role = userType === 'instructor' ? 2 : 1;
+    this.authService.googleLogin(response.credential, true, role).subscribe({
       next: (result) => {
         this.loading = false;
         const roleRoutes: Record<string, string> = {
@@ -143,5 +160,13 @@ export class RegisterComponent implements OnInit, AfterViewInit {
 
   get agreeTerms() {
     return this.registerForm.get('agreeTerms');
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
+
+  toggleConfirmPasswordVisibility(): void {
+    this.showConfirmPassword = !this.showConfirmPassword;
   }
 }

@@ -26,7 +26,10 @@ export class ResponseUnwrapInterceptor implements HttpInterceptor {
     return next.handle(request).pipe(
       map(event => {
         if (event instanceof HttpResponse && this.isEnvelope(event.body)) {
-          return event.clone({ body: event.body.data });
+          // The backend's `DefaultIgnoreCondition = WhenWritingNull` drops the
+          // "data" key entirely when it's null (e.g. "no quiz for this lesson"),
+          // so its absence must unwrap to null rather than leaving the raw envelope.
+          return event.clone({ body: 'data' in event.body ? event.body.data : null });
         }
         return event;
       })
@@ -42,7 +45,6 @@ export class ResponseUnwrapInterceptor implements HttpInterceptor {
     return !!body
       && typeof body === 'object'
       && typeof body.isSuccess === 'boolean'
-      && 'data' in body
-      && 'message' in body;
+      && typeof body.message === 'string';
   }
 }

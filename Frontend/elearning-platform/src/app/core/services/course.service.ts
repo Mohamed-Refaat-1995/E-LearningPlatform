@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, forkJoin, of } from 'rxjs';
 import { switchMap, map } from 'rxjs/operators';
-import { Course, Section, Lesson, Review, CreateReviewRequest } from '@shared/models/course.model';
+import { Course, Section, Lesson, Review, CreateReviewRequest, Category } from '@shared/models/course.model';
 import { ConfigService } from './config.service';
 
 @Injectable({
@@ -101,8 +101,14 @@ export class CourseService {
     return this.http.post(`${this.API_URL}/${courseId}/reviews`, request);
   }
 
-  getCategories(): Observable<string[]> {
-    return this.http.get<string[]>(`${this.API_URL}/categories`);
+  reactToReview(reviewId: number, emoji: string): Observable<{ reactionCounts: { [emoji: string]: number }; myReaction: string | null }> {
+    return this.http.post<{ reactionCounts: { [emoji: string]: number }; myReaction: string | null }>(
+      `${this.API_URL}/reviews/${reviewId}/reaction`, { emoji }
+    );
+  }
+
+  getCategories(): Observable<Category[]> {
+    return this.http.get<Category[]>(`${this.API_URL}/categories`);
   }
 
   getPopular(take = 10): Observable<Course[]> {

@@ -20,13 +20,17 @@ public class CourseController : ControllerBase
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICloudinaryVideoService _videoService;
     private readonly AppDbContext _db;
+    private readonly IQuizService _quizService;
+    private readonly INotificationService _notificationService;
 
     public CourseController(ICourseService courseService,
                             IEnrollmentService enrollmentService,
                             IUserService userService,
                             IUnitOfWork unitOfWork,
                             ICloudinaryVideoService videoService,
-                            AppDbContext db)
+                            AppDbContext db,
+                            IQuizService quizService,
+                            INotificationService notificationService)
     {
         _courseService = courseService;
         _enrollmentService = enrollmentService;
@@ -34,6 +38,8 @@ public class CourseController : ControllerBase
         _unitOfWork = unitOfWork;
         _videoService = videoService;
         _db = db;
+        _quizService = quizService;
+        _notificationService = notificationService;
     }
 
 
@@ -103,8 +109,98 @@ public class CourseController : ControllerBase
     [HttpGet("{courseId}/reviews"), AllowAnonymous]
     public async Task<IActionResult> GetCourseReviews(int courseId)
     {
-        var reviews = await _courseService.GetCourseReviewsAsync(courseId);
+        int? currentUserId = TryGetUserId(out var uid) ? uid : null;
+
+        var rows = await _db.Reviews
+            .Where(r => r.CourseId == courseId && !r.IsDeleted)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new
+            {
+                r.Id,
+                r.Rating,
+                r.Title,
+                r.Content,
+                r.CreatedAt,
+                r.InstructorReply,
+                r.RepliedAt,
+                StudentFirst = r.Student.FirstName,
+                StudentLast = r.Student.LastName,
+                Reactions = r.Reactions.Select(x => new { x.Emoji, x.UserId }).ToList()
+            })
+            .ToListAsync();
+
+        var reviews = rows.Select(r => new
+        {
+            r.Id,
+            r.Rating,
+            r.Title,
+            r.Content,
+            r.CreatedAt,
+            r.InstructorReply,
+            r.RepliedAt,
+            StudentName = $"{r.StudentFirst} {r.StudentLast}".Trim(),
+            ReactionCounts = r.Reactions.GroupBy(x => x.Emoji).ToDictionary(g => g.Key, g => g.Count()),
+            MyReaction = currentUserId.HasValue ? r.Reactions.FirstOrDefault(x => x.UserId == currentUserId.Value)?.Emoji : null
+        });
+
         return Ok(new GenericResponseDTO<object>(true, reviews));
+    }
+
+    private static readonly HashSet<string> AllowedReactionEmojis = new() { "👍", "❤️", "😘", "😂", "🎉" };
+
+    [HttpPost("reviews/{reviewId}/reaction")]
+    [Authorize]
+    public async Task<IActionResult> ReactToReview(int reviewId, [FromBody] ReviewReactionRequestDto request)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Emoji) || !AllowedReactionEmojis.Contains(request.Emoji))
+        {
+            return BadRequest(new GenericResponseDTO<object>(false, "Invalid reaction emoji"));
+        }
+
+        var review = await _db.Reviews.FirstOrDefaultAsync(r => r.Id == reviewId && !r.IsDeleted);
+        if (review == null)
+        {
+            return NotFound(new GenericResponseDTO<object>(false, "Review not found"));
+        }
+
+        var existing = await _db.ReviewReactions.FirstOrDefaultAsync(x => x.ReviewId == reviewId && x.UserId == userId);
+        string? myReaction;
+
+        if (existing == null)
+        {
+            _db.ReviewReactions.Add(new ReviewReaction { ReviewId = reviewId, UserId = userId, Emoji = request.Emoji });
+            myReaction = request.Emoji;
+        }
+        else if (existing.Emoji == request.Emoji)
+        {
+            _db.ReviewReactions.Remove(existing);
+            myReaction = null;
+        }
+        else
+        {
+            existing.Emoji = request.Emoji;
+            existing.UpdatedAt = DateTime.UtcNow;
+            myReaction = request.Emoji;
+        }
+
+        await _db.SaveChangesAsync();
+
+        var counts = await _db.ReviewReactions
+            .Where(x => x.ReviewId == reviewId)
+            .GroupBy(x => x.Emoji)
+            .Select(g => new { Emoji = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        return Ok(new GenericResponseDTO<object>(true, new
+        {
+            reactionCounts = counts.ToDictionary(c => c.Emoji, c => c.Count),
+            myReaction
+        }));
     }
 
 
@@ -238,6 +334,7 @@ public class CourseController : ControllerBase
         }
 
         await _courseService.UpdateCourseAsync(existing);
+        await _notificationService.NotifyEnrolledStudentsCourseUpdatedAsync(existing.Id, existing.Title);
         return Ok(new GenericResponseDTO<Course>(true, existing, "Course updated successfully"));
     }
 
@@ -300,8 +397,46 @@ public class CourseController : ControllerBase
         existing.UpdatedAt = DateTime.UtcNow;
 
         await _courseService.UpdateCourseAsync(existing);
+
+        // Publishing a course also publishes every quiz attached to its lessons —
+        // otherwise a forgotten draft quiz silently blocks course completion for students.
+        if (existing.IsPublished)
+        {
+            await PublishAllCourseQuizzesAsync(id);
+
+            if (existing.Price == 0)
+            {
+                await _notificationService.NotifyAllStudentsFreeCourseAsync(existing.Id, existing.Title);
+            }
+        }
+
         return Ok(new GenericResponseDTO<object>(true, new { isPublished = existing.IsPublished },
             existing.IsPublished ? "Course published successfully" : "Course unpublished successfully"));
+    }
+
+    private async Task PublishAllCourseQuizzesAsync(int courseId)
+    {
+        var sections = await _unitOfWork.Sections.FindAsync(s => s.CourseId == courseId && !s.IsDeleted);
+        var sectionIds = sections.Select(s => s.Id).ToList();
+        if (sectionIds.Count == 0) return;
+
+        var lessons = await _unitOfWork.Lessons.FindAsync(l => sectionIds.Contains(l.SectionId) && !l.IsDeleted);
+        var lessonIds = lessons.Select(l => l.Id).ToList();
+        if (lessonIds.Count == 0) return;
+
+        var quizzes = await _unitOfWork.Quizzes.FindAsync(q => lessonIds.Contains(q.LessonId.HasValue ? q.LessonId.Value:0) && !q.IsDeleted && !q.IsPublished);
+        foreach (var quiz in quizzes)
+        {
+            // Skip quizzes with incomplete questions (no answers / no correct answer) —
+            // they stay as drafts instead of silently going live half-finished.
+            if (await _quizService.ValidatePublishReadinessAsync(quiz.Id) != null) continue;
+
+            quiz.IsPublished = true;
+            quiz.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Quizzes.Update(quiz);
+        }
+
+        await _unitOfWork.SaveChangesAsync();
     }
 
 
@@ -348,6 +483,48 @@ public class CourseController : ControllerBase
 
         var enrollment = await _enrollmentService.EnrollStudentAsync(userId, courseId, course.Price);
         return Ok(new GenericResponseDTO<object>(true, enrollment, "Enrolled successfully"));
+    }
+
+    [HttpGet("{courseId}/completion-status")]
+    [Authorize]
+    public async Task<IActionResult> GetCompletionStatus(int courseId)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
+        }
+
+        var status = await _enrollmentService.GetCourseCompletionStatusAsync(userId, courseId);
+        return Ok(new GenericResponseDTO<object>(true, status));
+    }
+
+    [HttpPost("{courseId}/certificate")]
+    [Authorize]
+    public async Task<IActionResult> GenerateCourseCertificate(int courseId)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
+        }
+
+        var certificate = await _enrollmentService.GenerateCertificateIfEligibleAsync(userId, courseId);
+        if (certificate == null)
+        {
+            return BadRequest(new GenericResponseDTO<object>(false,
+                "Course must be fully complete — all lessons watched and all quizzes passed — to earn a certificate"));
+        }
+
+        var course = await _unitOfWork.Courses.GetByIdAsync(courseId);
+        return Ok(new GenericResponseDTO<object>(true, new
+        {
+            id = certificate.Id,
+            studentId = certificate.StudentId,
+            courseId = certificate.CourseId,
+            courseName = course?.Title,
+            certificateNumber = certificate.CertificateNumber,
+            issuedAt = certificate.IssuedAt,
+            verificationCode = certificate.VerificationCode
+        }));
     }
 
     // ─── Section Endpoints ────────────────────────────────────────────────────
@@ -630,6 +807,75 @@ public class CourseController : ControllerBase
 
     // ─── Video Upload Endpoint ─────────────────────────────────────────────────
 
+    [HttpDelete("{id}/discard")]
+    [Authorize(Policy = "InstructorOnly")]
+    public async Task<IActionResult> DiscardDraftCourse(int id)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized(new GenericResponseDTO<object>(false, "Unauthorized"));
+        }
+
+        var course = await _unitOfWork.Courses.GetByIdAsync(id);
+        if (course == null)
+        {
+            return NotFound(new GenericResponseDTO<object>(false, "Course not found"));
+        }
+
+        if (course.InstructorId != userId && !User.IsInRole("Admin"))
+        {
+            return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
+        }
+
+        if (course.IsPublished)
+        {
+            return Conflict(new GenericResponseDTO<object>(false, "Only unpublished draft courses can be discarded."));
+        }
+
+        var enrollments = await _enrollmentService.GetCourseEnrollmentsAsync(id);
+        if (enrollments.Any())
+        {
+            return Conflict(new GenericResponseDTO<object>(false, "Cannot discard a course that has enrolled students."));
+        }
+
+        var sections = await _db.Set<Section>().Where(s => s.CourseId == id).ToListAsync();
+        var sectionIds = sections.Select(s => s.Id).ToList();
+        var lessons = await _db.Set<Lesson>().Where(l => sectionIds.Contains(l.SectionId)).ToListAsync();
+        var lessonIds = lessons.Select(l => l.Id).ToList();
+        var quizzes = await _db.Set<Quiz>().Where(q => lessonIds.Contains(q.LessonId.HasValue ? q.LessonId.Value:0)).ToListAsync();
+        var quizIds = quizzes.Select(q => q.Id).ToList();
+        var questions = await _db.Set<Question>().Where(q => quizIds.Contains(q.QuizId)).ToListAsync();
+        var questionIds = questions.Select(q => q.Id).ToList();
+        var answers = await _db.Set<Answer>().Where(a => questionIds.Contains(a.QuestionId)).ToListAsync();
+        var studentAnswers = await _db.Set<StudentAnswer>().Where(sa => questionIds.Contains(sa.QuestionId)).ToListAsync();
+        var quizResults = await _db.Set<QuizResult>().Where(qr => quizIds.Contains(qr.QuizId)).ToListAsync();
+
+        foreach (var lesson in lessons)
+        {
+            if (!string.IsNullOrEmpty(lesson.VideoPublicId))
+            {
+                await _videoService.DeleteVideoAsync(lesson.VideoPublicId);
+            }
+            if (!string.IsNullOrEmpty(lesson.ResourcePublicId))
+            {
+                await _videoService.DeleteFileAsync(lesson.ResourcePublicId);
+            }
+        }
+
+        _db.Set<StudentAnswer>().RemoveRange(studentAnswers);
+        _db.Set<QuizResult>().RemoveRange(quizResults);
+        _db.Set<Answer>().RemoveRange(answers);
+        _db.Set<Question>().RemoveRange(questions);
+        _db.Set<Quiz>().RemoveRange(quizzes);
+        _db.Set<Lesson>().RemoveRange(lessons);
+        _db.Set<Section>().RemoveRange(sections);
+        _unitOfWork.Courses.Remove(course);
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new GenericResponseDTO<object>(true, "Course discarded successfully"));
+    }
+
     [HttpPatch("{id}/archive")]
     [Authorize(Policy = "InstructorOnly")]
     public async Task<IActionResult> ArchiveCourse(int id)
@@ -687,6 +933,12 @@ public class CourseController : ControllerBase
             return BadRequest(new GenericResponseDTO<object>(false, "No file uploaded."));
         }
 
+        const long maxResourceBytes = 10 * 1024 * 1024;
+        if (file.Length > maxResourceBytes)
+        {
+            return BadRequest(new GenericResponseDTO<object>(false, "Resource file must be 10 MB or smaller."));
+        }
+
         CloudinaryUploadResult result;
 
         using (var stream = file.OpenReadStream())
@@ -694,7 +946,14 @@ public class CourseController : ControllerBase
             result = await _videoService.UploadFileAsync(stream, file.FileName);
         }
 
+        // Remove previous resource from Cloudinary if the lesson already has one
+        if (!string.IsNullOrEmpty(lesson.ResourcePublicId))
+        {
+            await _videoService.DeleteFileAsync(lesson.ResourcePublicId);
+        }
+
         lesson.ResourceUrl = result.SecureUrl;
+        lesson.ResourcePublicId = result.PublicId;
         lesson.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.Lessons.Update(lesson);
         await _unitOfWork.SaveChangesAsync();
@@ -745,6 +1004,8 @@ public class CourseController : ControllerBase
 
     [HttpPost("{courseId}/sections/{sectionId}/lessons/{lessonId}/video")]
     [Authorize(Policy = "InstructorOnly")]
+    [RequestSizeLimit(1024L * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 1024L * 1024 * 1024)]
     public async Task<IActionResult> UploadVideo(int courseId, int sectionId, int lessonId, IFormFile file)
     {
         if (!TryGetUserId(out var userId))
@@ -786,12 +1047,21 @@ public class CourseController : ControllerBase
         lesson.ContentType = "Video";
         lesson.VideoUrl = result.SecureUrl;
         lesson.VideoPublicId = result.PublicId;
+        if (result.DurationSeconds.HasValue)
+        {
+            lesson.DurationMinutes = (int)Math.Ceiling(result.DurationSeconds.Value / 60.0);
+        }
         lesson.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Lessons.Update(lesson);
         await _unitOfWork.SaveChangesAsync();
 
-        return Ok(new GenericResponseDTO<object>(true, new { videoUrl = result.SecureUrl, publicId = result.PublicId }, "Video uploaded successfully"));
+        return Ok(new GenericResponseDTO<object>(true, new
+        {
+            videoUrl = result.SecureUrl,
+            publicId = result.PublicId,
+            durationMinutes = lesson.DurationMinutes
+        }, "Video uploaded successfully"));
     }
     private bool TryGetUserId(out int userId)
     {

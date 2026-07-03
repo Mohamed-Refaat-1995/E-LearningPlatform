@@ -464,6 +464,9 @@ namespace ELearningPlatform.Infrastructure.Migrations
                     b.Property<bool>("IsPreview")
                         .HasColumnType("bit");
 
+                    b.Property<string>("ResourcePublicId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ResourceUrl")
                         .HasColumnType("nvarchar(max)");
 
@@ -537,6 +540,56 @@ namespace ELearningPlatform.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("LessonProgresses");
+                });
+
+            modelBuilder.Entity("ELearningPlatform.Core.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CourseId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("ELearningPlatform.Core.Order", b =>
@@ -683,6 +736,9 @@ namespace ELearningPlatform.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("CorrectAnswerId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -709,6 +765,8 @@ namespace ELearningPlatform.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CorrectAnswerId");
 
                     b.HasIndex("QuizId");
 
@@ -738,7 +796,7 @@ namespace ELearningPlatform.Infrastructure.Migrations
                     b.Property<bool>("IsPublished")
                         .HasColumnType("bit");
 
-                    b.Property<int>("LessonId")
+                    b.Property<int?>("LessonId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("PassingScore")
@@ -759,7 +817,8 @@ namespace ELearningPlatform.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("LessonId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[LessonId] IS NOT NULL");
 
                     b.ToTable("Quizzes");
                 });
@@ -777,6 +836,15 @@ namespace ELearningPlatform.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("IsPassed")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MaxScore")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Percentage")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("QuizId")
                         .HasColumnType("int");
@@ -824,11 +892,17 @@ namespace ELearningPlatform.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("InstructorReply")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
                     b.Property<int>("Rating")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("RepliedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("StudentId")
                         .HasColumnType("int");
@@ -849,6 +923,44 @@ namespace ELearningPlatform.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("ELearningPlatform.Core.ReviewReaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ReviewId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ReviewId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ReviewReactions");
                 });
 
             modelBuilder.Entity("ELearningPlatform.Core.Section", b =>
@@ -1232,6 +1344,24 @@ namespace ELearningPlatform.Infrastructure.Migrations
                     b.Navigation("Lesson");
                 });
 
+            modelBuilder.Entity("ELearningPlatform.Core.Notification", b =>
+                {
+                    b.HasOne("ELearningPlatform.Core.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ELearningPlatform.Core.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("ELearningPlatform.Core.Order", b =>
                 {
                     b.HasOne("ELearningPlatform.Core.Student", "Student")
@@ -1275,11 +1405,18 @@ namespace ELearningPlatform.Infrastructure.Migrations
 
             modelBuilder.Entity("ELearningPlatform.Core.Question", b =>
                 {
+                    b.HasOne("ELearningPlatform.Core.Answer", "CorrectAnswer")
+                        .WithMany()
+                        .HasForeignKey("CorrectAnswerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ELearningPlatform.Core.Quiz", "Quiz")
                         .WithMany("Questions")
                         .HasForeignKey("QuizId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("CorrectAnswer");
 
                     b.Navigation("Quiz");
                 });
@@ -1288,9 +1425,7 @@ namespace ELearningPlatform.Infrastructure.Migrations
                 {
                     b.HasOne("ELearningPlatform.Core.Lesson", "Lesson")
                         .WithOne("Quiz")
-                        .HasForeignKey("ELearningPlatform.Core.Quiz", "LessonId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("ELearningPlatform.Core.Quiz", "LessonId");
 
                     b.Navigation("Lesson");
                 });
@@ -1331,6 +1466,25 @@ namespace ELearningPlatform.Infrastructure.Migrations
                     b.Navigation("Course");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("ELearningPlatform.Core.ReviewReaction", b =>
+                {
+                    b.HasOne("ELearningPlatform.Core.Review", "Review")
+                        .WithMany("Reactions")
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ELearningPlatform.Core.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Review");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ELearningPlatform.Core.Section", b =>
@@ -1440,6 +1594,11 @@ namespace ELearningPlatform.Infrastructure.Migrations
             modelBuilder.Entity("ELearningPlatform.Core.QuizResult", b =>
                 {
                     b.Navigation("StudentAnswers");
+                });
+
+            modelBuilder.Entity("ELearningPlatform.Core.Review", b =>
+                {
+                    b.Navigation("Reactions");
                 });
 
             modelBuilder.Entity("ELearningPlatform.Core.Section", b =>

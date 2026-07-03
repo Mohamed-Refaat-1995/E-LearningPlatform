@@ -70,7 +70,8 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "buildTarget": "elearning-platform:build"
+            "buildTarget": "elearning-platform:build",
+            "poll": 2000
           },
           "configurations": {
             "production": {

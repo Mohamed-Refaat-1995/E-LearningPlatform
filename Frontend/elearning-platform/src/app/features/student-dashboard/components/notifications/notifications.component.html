@@ -1,0 +1,43 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="bg-white shadow">
+    <div class="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-900">Notifications</h1>
+      <a routerLink="/dashboard" class="text-indigo-600 text-sm hover:underline">← Back to Dashboard</a>
+    </div>
+  </div>
+
+  <div class="max-w-4xl mx-auto py-8 px-4">
+    <div class="flex justify-end mb-4">
+      <button (click)="markAllAsRead()" [disabled]="!hasUnread"
+        class="text-sm font-medium text-indigo-600 hover:underline disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed">
+        Mark all as read
+      </button>
+    </div>
+
+    @if (notifications.length === 0) {
+      <div class="bg-white rounded-lg shadow p-12 text-center">
+        <p class="text-gray-500 mb-2">No notifications yet.</p>
+        <p class="text-sm text-gray-400">You'll see updates here when an instructor updates a course you're enrolled in, or when a new free course is published.</p>
+      </div>
+    } @else {
+      <div class="space-y-3">
+        @for (n of notifications; track n.id) {
+          <button (click)="markAsRead(n)"
+            class="w-full text-left bg-white rounded-lg shadow p-5 flex items-start gap-4 transition-colors"
+            [class.bg-indigo-50]="!n.isRead">
+            <div class="w-2.5 h-2.5 mt-1.5 rounded-full flex-shrink-0" [class.bg-indigo-600]="!n.isRead" [class.bg-transparent]="n.isRead"></div>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-gray-900">{{ n.title }}</p>
+              <p class="text-sm text-gray-600 mt-0.5">{{ n.message }}</p>
+              <p class="text-xs text-gray-400 mt-1">{{ n.createdAt | date:'medium' }}</p>
+            </div>
+            @if (n.courseId) {
+              <a [routerLink]="['/courses', n.courseId]" (click)="$event.stopPropagation()"
+                class="text-xs text-indigo-600 hover:underline flex-shrink-0 mt-1">View course</a>
+            }
+          </button>
+        }
+      </div>
+    }
+  </div>
+</div>

@@ -1,22 +1,29 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChildren, QueryList } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
-import { Subject } from 'rxjs';
+import { Observable, Subject, of } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { InstructorService } from '@core/services/instructor.service';
 import { CourseService } from '@core/services/course.service';
 import { ToastService } from '@core/services/toast.service';
 import { Course, Section, Lesson } from '@shared/models/course.model';
+import { LessonQuizEditorComponent } from '../lesson-quiz-editor/lesson-quiz-editor.component';
+import { UnsavedCourseComponent } from '@core/guards/unsaved-course.guard';
+import { SafeUrlPipe } from '@shared/pipes/safe-url.pipe';
+
+const MAX_RESOURCE_BYTES = 10 * 1024 * 1024;
 
 @Component({
   selector: 'app-course-builder',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, LessonQuizEditorComponent, SafeUrlPipe],
   templateUrl: './course-builder.component.html',
   styleUrl: './course-builder.component.scss'
 })
-export class CourseBuilderComponent implements OnInit, OnDestroy {
+export class CourseBuilderComponent implements OnInit, OnDestroy, UnsavedCourseComponent {
+  @ViewChildren(LessonQuizEditorComponent) quizEditors!: QueryList<LessonQuizEditorComponent>;
+
   course: Course | null = null;
   sections: Section[] = [];
   courseId = 0;
@@ -47,6 +54,11 @@ export class CourseBuilderComponent implements OnInit, OnDestroy {
   // ── Save course ──────────────────────────────────────────────────────────────
   savingCourse = false;
 
+  // ── Exit confirmation (save/discard draft) ──────────────────────────────────
+  exitConfirmStep: 'save' | 'discard' | null = null;
+  discardingCourse = false;
+  private exitResolve$: Subject<boolean> | null = null;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -67,7 +79,7 @@ export class CourseBuilderComponent implements OnInit, OnDestroy {
     this.lessonForm = this.fb.group({
       title: ['', [Validators.required, Validators.minLength(3)]],
       description: [''],
-      durationMinutes: [0, [Validators.required, Validators.min(0)]],
+      durationMinutes: [0],
       isPreview: [false]
     });
 
@@ -107,8 +119,7 @@ export class CourseBuilderComponent implements OnInit, OnDestroy {
       .subscribe({
         next: lessons => {
           section.lessons = lessons.map(l => {
-            const videoContent = l.contents?.find(c => c.contentType === 'Video');
-            if (videoContent?.videoUrl) this.videoPreviewUrl[l.id] = videoContent.videoUrl;
+            if (l.videoUrl) this.videoPreviewUrl[l.id] = l.videoUrl;
             return l;
           });
         }
@@ -269,7 +280,8 @@ export class CourseBuilderComponent implements OnInit, OnDestroy {
         next: result => {
           this.videoPreviewUrl[lesson.id] = result.videoUrl;
           this.uploadingVideoFor = null;
-          this.toast.success('Video uploaded successfully!');
+          lesson.durationMinutes = result.durationMinutes;
+          this.toast.success(`Video uploaded successfully! Duration: ${result.durationMinutes} min`);
           if (!lesson.contents) lesson.contents = [];
           const existing = lesson.contents.findIndex(c => c.contentType === 'Video');
           const newContent = { id: 0, lessonId: lesson.id, contentType: 'Video', videoUrl: result.videoUrl, videoPublicId: result.publicId };
@@ -310,6 +322,12 @@ export class CourseBuilderComponent implements OnInit, OnDestroy {
     if (!input.files?.length) return;
     const file = input.files[0];
 
+    if (file.size > MAX_RESOURCE_BYTES) {
+      this.toast.warning('Resource file must be 10 MB or smaller.');
+      input.value = '';
+      return;
+    }
+
     this.uploadingResourceFor = lesson.id;
     this.instructorService.uploadResource(this.courseId, section.id, lesson.id, file)
       .pipe(takeUntil(this.destroy$))
@@ -318,7 +336,10 @@ export class CourseBuilderComponent implements OnInit, OnDestroy {
           this.uploadingResourceFor = null;
           this.toast.success('Resource uploaded successfully!');
           if (!lesson.contents) lesson.contents = [];
-          lesson.contents.push({ id: 0, lessonId: lesson.id, contentType: 'Resource', resourceUrl: result.resourceUrl });
+          const existing = lesson.contents.findIndex(c => c.contentType === 'Resource');
+          const newContent = { id: 0, lessonId: lesson.id, contentType: 'Resource', resourceUrl: result.resourceUrl };
+          if (existing >= 0) lesson.contents[existing] = newContent;
+          else lesson.contents.push(newContent);
         },
         error: () => {
           this.uploadingResourceFor = null;
@@ -328,11 +349,28 @@ export class CourseBuilderComponent implements OnInit, OnDestroy {
   }
 
   getVideoUrl(lesson: Lesson): string | null {
-    return this.videoPreviewUrl[lesson.id] || lesson.contents?.find(c => c.contentType === 'Video')?.videoUrl || null;
+    return this.videoPreviewUrl[lesson.id]
+      || lesson.contents?.find(c => c.contentType === 'Video')?.videoUrl
+      || lesson.videoUrl
+      || null;
   }
 
   getResourceUrl(lesson: Lesson): string | null {
-    return lesson.contents?.find(c => c.contentType === 'Resource')?.resourceUrl || null;
+    return lesson.contents?.find(c => c.contentType === 'Resource')?.resourceUrl
+      || lesson.resourceUrl
+      || null;
+  }
+
+  isPdfResource(lesson: Lesson): boolean {
+    const url = this.getResourceUrl(lesson);
+    return !!url && url.toLowerCase().split('?')[0].endsWith('.pdf');
+  }
+
+  getResourceFileName(lesson: Lesson): string {
+    const url = this.getResourceUrl(lesson);
+    if (!url) return '';
+    const clean = url.split('?')[0];
+    return decodeURIComponent(clean.substring(clean.lastIndexOf('/') + 1));
   }
 
   totalLessons(): number {
@@ -355,6 +393,11 @@ export class CourseBuilderComponent implements OnInit, OnDestroy {
       this.toast.warning(`Upload a video for "${missingVideo.title}" before saving.`);
       return;
     }
+    const quizError = this.quizEditors?.map(q => q.validateForSave()).find(e => !!e);
+    if (quizError) {
+      this.toast.warning(quizError);
+      return;
+    }
     this.savingCourse = true;
     this.instructorService.togglePublish(this.courseId)
       .pipe(takeUntil(this.destroy$))
@@ -369,6 +412,68 @@ export class CourseBuilderComponent implements OnInit, OnDestroy {
           this.toast.error('Failed to save course.');
         }
       });
+  }
+
+  // ── Exit confirmation (CanDeactivate) ───────────────────────────────────────
+
+  private hasUnsavedDraft(): boolean {
+    return !!this.course && !this.course.isPublished && this.sections.length > 0;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedDraft()) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }
+
+  confirmExit(): Observable<boolean> {
+    if (!this.hasUnsavedDraft()) {
+      return of(true);
+    }
+    this.exitConfirmStep = 'save';
+    this.exitResolve$ = new Subject<boolean>();
+    return this.exitResolve$.asObservable();
+  }
+
+  onExitSaveYes(): void {
+    this.exitConfirmStep = null;
+    this.toast.success('Draft saved.');
+    this.exitResolve$?.next(true);
+    this.exitResolve$?.complete();
+  }
+
+  onExitSaveNo(): void {
+    this.exitConfirmStep = 'discard';
+  }
+
+  onExitDiscardYes(): void {
+    this.discardingCourse = true;
+    this.instructorService.discardCourse(this.courseId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.discardingCourse = false;
+          this.exitConfirmStep = null;
+          this.toast.success('Course discarded.');
+          this.exitResolve$?.next(true);
+          this.exitResolve$?.complete();
+        },
+        error: () => {
+          this.discardingCourse = false;
+          this.toast.error('Failed to discard course.');
+          this.exitConfirmStep = null;
+          this.exitResolve$?.next(false);
+          this.exitResolve$?.complete();
+        }
+      });
+  }
+
+  onExitDiscardNo(): void {
+    this.exitConfirmStep = null;
+    this.exitResolve$?.next(false);
+    this.exitResolve$?.complete();
   }
 
   ngOnDestroy(): void {

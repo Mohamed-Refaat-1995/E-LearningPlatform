@@ -66,7 +66,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
   private handleGoogleCredential(response: any): void {
     this.loading = true;
     this.error = null;
-    this.authService.googleLogin(response.credential).subscribe({
+    this.authService.googleLogin(response.credential, this.rememberMe).subscribe({
       next: (result) => {
         this.loading = false;
         this.redirectByRole(result.role);
@@ -80,7 +80,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
   private redirectByRole(role: string): void {
     const returnUrl = this.route.snapshot.queryParams['returnUrl'];
-    if (returnUrl) {
+    if (returnUrl && role === 'Student') {
       this.router.navigate([returnUrl]);
       return;
     }
@@ -98,7 +98,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
     this.loading = true;
     this.error = null;
 
-    this.authService.login(this.loginForm.value).subscribe({
+    this.authService.login(this.loginForm.value, this.rememberMe).subscribe({
       next: (response) => {
         this.loading = false;
         this.redirectByRole(response.role);

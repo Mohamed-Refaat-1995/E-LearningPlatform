@@ -5,8 +5,9 @@ import { RouterModule, Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { CourseService } from '@core/services/course.service';
+import { InstructorService } from '@core/services/instructor.service';
 import { ToastService } from '@core/services/toast.service';
-import { CreateCourseRequest } from '@shared/models/course.model';
+import { CreateCourseRequest, Category } from '@shared/models/course.model';
 
 @Component({
   selector: 'app-create-course',
@@ -21,14 +22,17 @@ export class CreateCourseComponent implements OnInit, OnDestroy {
   error: string | null = null;
   success: string | null = null;
 
-  categories = ['Web Development', 'Mobile Development', 'Data Science', 'AI & Machine Learning', 'Cloud Computing', 'DevOps'];
+  categories: Category[] = [];
   levels = ['Beginner', 'Intermediate', 'Advanced'];
+
+  profitPercentage = 0;
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private formBuilder: FormBuilder,
     private courseService: CourseService,
+    private instructorService: InstructorService,
     private router: Router,
     private toast: ToastService
   ) {}
@@ -37,11 +41,36 @@ export class CreateCourseComponent implements OnInit, OnDestroy {
     this.courseForm = this.formBuilder.group({
       title: ['', [Validators.required, Validators.minLength(5)]],
       description: ['', [Validators.required, Validators.minLength(20)]],
-      category: ['', Validators.required],
+      categoryId: [null, Validators.required],
       level: ['Beginner', Validators.required],
       price: [0, [Validators.required, Validators.min(0)]],
-      thumbnailUrl: ['']
+      thumbnailUrl: [''],
+      feeConfirmed: [false, Validators.requiredTrue]
     });
+
+    this.courseService.getCategories()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: categories => this.categories = categories,
+        error: () => this.toast.error('Failed to load categories.')
+      });
+
+    this.instructorService.getPlatformProfitPercentage()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: res => this.profitPercentage = res.profitPercentage,
+        error: () => { /* fee preview simply won't show if unavailable */ }
+      });
+  }
+
+  get platformFee(): number {
+    const price = Number(this.price?.value) || 0;
+    return Math.round(price * this.profitPercentage) / 100;
+  }
+
+  get instructorShare(): number {
+    const price = Number(this.price?.value) || 0;
+    return Math.round((price - this.platformFee) * 100) / 100;
   }
 
   onSubmit(): void {
@@ -51,7 +80,8 @@ export class CreateCourseComponent implements OnInit, OnDestroy {
     this.error = null;
     this.success = null;
 
-    const request: CreateCourseRequest = this.courseForm.value;
+    const { feeConfirmed, ...formValue } = this.courseForm.value;
+    const request: CreateCourseRequest = formValue;
 
     this.courseService.createCourse(request)
       .pipe(takeUntil(this.destroy$))
@@ -72,7 +102,7 @@ export class CreateCourseComponent implements OnInit, OnDestroy {
   get title() { return this.courseForm.get('title'); }
   get description() { return this.courseForm.get('description'); }
   get price() { return this.courseForm.get('price'); }
-  get category() { return this.courseForm.get('category'); }
+  get categoryId() { return this.courseForm.get('categoryId'); }
   get level() { return this.courseForm.get('level'); }
 
   ngOnDestroy(): void {

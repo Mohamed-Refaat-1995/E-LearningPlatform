@@ -138,20 +138,37 @@ public class CourseService : ICourseService
     public async Task<IEnumerable<Course>> GetPopularCoursesAsync(int take = 10)
     {
         var courses = await _unitOfWork.Courses.FindAsync(c => !c.IsDeleted && c.IsPublished);
-        return courses.OrderByDescending(c => GetTotalStudentsForCourse(c.Id))
-                    .ThenByDescending(c => GetAverageRateForCourse(c.Id))
-                    .Take(take)
-                    .ToList();
-
+        var coursesWithMetrics = new List<(Course Course, float TotalStudents, float AverageRate)>();
+        foreach (var c in courses)
+        {
+            var totalStudents = await GetTotalStudentsForCourse(c.Id);
+            var averageRate = await GetAverageRateForCourse(c.Id);
+            coursesWithMetrics.Add((c, totalStudents, averageRate));
+        }
+        return coursesWithMetrics
+            .OrderByDescending(x => x.TotalStudents)
+            .ThenByDescending(x => x.AverageRate)
+            .Take(take)
+            .Select(x => x.Course)
+            .ToList();
     }
 
     public async Task<IEnumerable<Course>> GetTopRatedCoursesAsync(int take = 10)
     {
         var courses = await _unitOfWork.Courses.FindAsync(c => !c.IsDeleted && c.IsPublished);
-        return courses.OrderByDescending(c => GetAverageRateForCourse(c.Id))
-                    .ThenByDescending(c => GetTotalReviewsForCourse(c.Id))
-                    .Take(take)
-                    .ToList();
+        var coursesWithMetrics = new List<(Course Course, float AverageRate, int TotalReviews)>();
+        foreach (var c in courses)
+        {
+            var averageRate = await GetAverageRateForCourse(c.Id);
+            var totalReviews = await GetTotalReviewsForCourse(c.Id);
+            coursesWithMetrics.Add((c, averageRate, totalReviews));
+        }
+        return coursesWithMetrics
+            .OrderByDescending(x => x.AverageRate)
+            .ThenByDescending(x => x.TotalReviews)
+            .Take(take)
+            .Select(x => x.Course)
+            .ToList();
     }
 
     public async Task UpdateAverageRatingAsync(int courseId)
@@ -181,7 +198,7 @@ public class CourseService : ICourseService
     public async Task<Course?> GetCourseContentAccordingToUserRole(int courseId, bool includeFullContent = false)
     {
         return await _dbContext.Courses
-            .Where(c => c.Id == courseId && !c.IsDeleted && c.IsPublished)
+            .Where(c => c.Id == courseId && !c.IsDeleted && (includeFullContent || c.IsPublished))
             .Select(c => new Course
             {
                 Id = c.Id,

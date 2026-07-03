@@ -1,17 +1,24 @@
 import { Component, OnInit, OnDestroy, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { AuthService } from '@core/services/auth.service';
+import { InstructorService, InstructorSearchSuggestions } from '@core/services/instructor.service';
+import { CourseService } from '@core/services/course.service';
+import { CartService } from '@core/services/cart.service';
+import { NotificationService } from '@core/services/notification.service';
 import { User, UserRole } from '@shared/models/user.model';
+import { Category, Course } from '@shared/models/course.model';
 import { Router } from '@angular/router';
 import { ThemeToggleComponent } from '@shared/components/theme-toggle/theme-toggle.component';
+import { CoursePreviewModalComponent } from '@shared/components/course-preview-modal/course-preview-modal.component';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterModule, ThemeToggleComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ThemeToggleComponent, CoursePreviewModalComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
@@ -23,19 +30,30 @@ export class HeaderComponent implements OnInit, OnDestroy {
   showCategoriesMenu = false;
   showMobileMenu = false;
 
-  categories: string[] = [
-    'Web Development',
-    'Mobile Development',
-    'Data Science',
-    'AI & Machine Learning',
-    'Cloud Computing',
-    'DevOps'
-  ];
+  // Instructor navbar search
+  searchQuery = '';
+  showSearchDropdown = false;
+  searchSuggestions: InstructorSearchSuggestions | null = null;
+
+  // Student navbar search
+  courseSuggestions: Course[] = [];
+  selectedPreviewCourse: Course | null = null;
+  showCoursePreview = false;
+
+  private searchInput$ = new Subject<string>();
+
+  categories: Category[] = [];
+
+  unreadNotificationCount = 0;
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private authService: AuthService,
+    private instructorService: InstructorService,
+    private courseService: CourseService,
+    public cartService: CartService,
+    private notificationService: NotificationService,
     private router: Router,
     private elementRef: ElementRef
   ) {}
@@ -43,7 +61,52 @@ export class HeaderComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.authService.getCurrentUser$()
       .pipe(takeUntil(this.destroy$))
-      .subscribe(user => this.currentUser = user);
+      .subscribe(user => {
+        this.currentUser = user;
+        if (user?.role === UserRole.Student) {
+          this.notificationService.connect();
+        } else {
+          this.notificationService.disconnect();
+        }
+      });
+
+    this.notificationService.notifications$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(list => this.unreadNotificationCount = list.filter(n => !n.isRead).length);
+
+    this.courseService.getCategories()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: cats => this.categories = cats,
+        error: () => this.categories = []
+      });
+
+    this.searchInput$.pipe(debounceTime(300), takeUntil(this.destroy$)).subscribe(q => {
+      if (!q.trim()) {
+        this.searchSuggestions = null;
+        this.courseSuggestions = [];
+        this.showSearchDropdown = false;
+        return;
+      }
+
+      if (this.isInstructor) {
+        this.instructorService.searchSuggestions(q.trim()).subscribe({
+          next: res => {
+            this.searchSuggestions = res;
+            this.showSearchDropdown = true;
+          },
+          error: () => { this.searchSuggestions = null; }
+        });
+      } else if (this.isStudent) {
+        this.courseService.searchCourses(q.trim()).subscribe({
+          next: res => {
+            this.courseSuggestions = res;
+            this.showSearchDropdown = true;
+          },
+          error: () => { this.courseSuggestions = []; }
+        });
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -66,6 +129,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   logout(): void {
     this.authService.logout();
+    this.notificationService.disconnect();
     this.router.navigate(['/auth/login']);
     this.showUserMenu = false;
     this.showMobileMenu = false;
@@ -105,6 +169,42 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (!this.elementRef.nativeElement.contains(event.target as Node)) {
       this.showUserMenu = false;
       this.showCategoriesMenu = false;
+      this.showSearchDropdown = false;
     }
+  }
+
+  onSearchInput(value: string): void {
+    this.searchQuery = value;
+    this.searchInput$.next(value);
+  }
+
+  hasSearchResults(): boolean {
+    const s = this.searchSuggestions;
+    return !!s && (s.courses.length > 0 || s.students.length > 0 || s.reviews.length > 0);
+  }
+
+  goToCourse(courseId: number): void {
+    this.showSearchDropdown = false;
+    this.router.navigate(['/instructor/course-builder', courseId]);
+  }
+
+  goToStudent(name: string): void {
+    this.showSearchDropdown = false;
+    this.router.navigate(['/instructor/students'], { queryParams: { search: name } });
+  }
+
+  goToReview(courseId: number, snippet: string): void {
+    this.showSearchDropdown = false;
+    this.router.navigate(['/instructor/reviews'], { queryParams: { search: snippet } });
+  }
+
+  openCoursePreview(course: Course): void {
+    this.showSearchDropdown = false;
+    this.selectedPreviewCourse = course;
+    this.showCoursePreview = true;
+  }
+
+  closeCoursePreview(): void {
+    this.showCoursePreview = false;
   }
 }

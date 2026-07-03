@@ -1,0 +1,61 @@
+<div class="min-h-screen bg-white dark:bg-gray-900">
+  <div class="max-w-5xl mx-auto px-4 py-8">
+    <a routerLink="/instructors" class="text-indigo-600 hover:underline text-sm mb-6 inline-block">&larr; Back to instructors</a>
+
+    <div *ngIf="loading" class="animate-pulse">
+      <div class="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 mb-4"></div>
+      <div class="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-2"></div>
+      <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+    </div>
+
+    <div *ngIf="!loading && notFound" class="text-center text-gray-500 py-12">
+      Instructor not found.
+    </div>
+
+    <ng-container *ngIf="!loading && !notFound && instructor as instructor">
+      <div class="flex items-center gap-6 mb-8">
+        <img *ngIf="instructor.profileImageUrl" [src]="instructor.profileImageUrl" [alt]="instructor.fullName"
+             class="w-24 h-24 rounded-full object-cover" />
+        <div *ngIf="!instructor.profileImageUrl"
+             class="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-2xl">
+          {{ initials(instructor.fullName) }}
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ instructor.fullName }}</h1>
+          <div class="flex items-center gap-1 text-sm mb-1">
+            <span class="text-yellow-500">{{ stars(instructor.averageRating) }}</span>
+            <span class="text-gray-500 dark:text-gray-400">({{ instructor.averageRating | number:'1.1-1' }})</span>
+          </div>
+          <div class="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
+            <span>{{ instructor.courseCount }} course{{ instructor.courseCount === 1 ? '' : 's' }}</span>
+            <span>{{ instructor.totalStudents }} student{{ instructor.totalStudents === 1 ? '' : 's' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <p *ngIf="instructor.bio" class="text-gray-700 dark:text-gray-300 mb-10">{{ instructor.bio }}</p>
+
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Courses</h2>
+
+      <div *ngIf="courses.length === 0" class="text-gray-500 text-sm py-4">No published courses yet.</div>
+
+      <div *ngIf="courses.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <a *ngFor="let course of courses" [routerLink]="['/courses', course.id]"
+           class="block border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg transition-all group">
+          <div class="aspect-video bg-gray-200 dark:bg-gray-700">
+            <img *ngIf="course.thumbnailUrl" [src]="course.thumbnailUrl" [alt]="course.title"
+                 class="w-full h-full object-cover group-hover:opacity-90 transition" />
+            <div *ngIf="!course.thumbnailUrl"
+                 class="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-lg font-semibold p-4 text-center">
+              {{ course.title }}
+            </div>
+          </div>
+          <div class="p-3">
+            <h3 class="font-bold text-gray-900 dark:text-white line-clamp-2 mb-1">{{ course.title }}</h3>
+            <p class="font-bold text-gray-900 dark:text-white">${{ course.price | number:'1.2-2' }}</p>
+          </div>
+        </a>
+      </div>
+    </ng-container>
+  </div>
+</div>

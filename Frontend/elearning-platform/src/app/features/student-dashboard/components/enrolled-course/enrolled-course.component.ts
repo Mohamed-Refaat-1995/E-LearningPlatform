@@ -56,6 +56,9 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
   bufferedPercent = 0;
   showControls = true;
   activeTab: 'notes' | 'resources' | 'about' = 'about';
+  showTranscript = false;
+  sidebarOpen = false;
+  justCompletedLessonId: number | null = null;
 
   // Notes
   notes: VideoNote[] = [];
@@ -169,6 +172,11 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
   }
 
   startQuiz(quizId: number): void {
+    const quiz = this.courseQuizzes.find(q => q.id === quizId);
+    if (quiz && !this.isLessonCompleted(quiz.lessonId)) {
+      this.toast.error('Complete the linked lesson before taking this quiz.');
+      return;
+    }
     this.router.navigate(['/quiz', quizId, 'take']);
   }
 
@@ -232,6 +240,9 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
     this.currentTime = 0;
     this.duration = 0;
     this.bufferedPercent = 0;
+    this.justCompletedLessonId = null;
+    this.showTranscript = false;
+    this.sidebarOpen = false;
     this.lastSavedSeconds = -1;
     this.showNoteInput = false;
     this.loadNotes(lesson.id);
@@ -241,27 +252,27 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
     if (!lesson) return null;
     if (lesson.contents?.length) {
       const v = lesson.contents.find((c: any) => c.contentType === 'Video');
-      return v?.videoUrl ?? null;
+      if (v?.videoUrl) return v.videoUrl;
     }
-    return lesson.content?.videoUrl ?? null;
+    return lesson.videoUrl ?? lesson.content?.videoUrl ?? null;
   }
 
   getTextContent(lesson: any): string | null {
     if (!lesson) return null;
     if (lesson.contents?.length) {
       const t = lesson.contents.find((c: any) => c.contentType === 'Text');
-      return t?.textContent ?? null;
+      if (t?.textContent) return t.textContent;
     }
-    return lesson.content?.textContent ?? null;
+    return lesson.textContent ?? lesson.content?.textContent ?? null;
   }
 
   getResourceUrl(lesson: any): string | null {
     if (!lesson) return null;
     if (lesson.contents?.length) {
       const r = lesson.contents.find((c: any) => c.contentType === 'Resource');
-      return r?.resourceUrl ?? null;
+      if (r?.resourceUrl) return r.resourceUrl;
     }
-    return lesson.content?.resourceUrl ?? null;
+    return lesson.resourceUrl ?? lesson.content?.resourceUrl ?? null;
   }
 
   getLessonProgress(lessonId: number): any {
@@ -303,6 +314,26 @@ export class EnrolledCourseComponent implements OnInit, OnDestroy {
   onEnded(): void {
     this.isPlaying = false;
     this.markComplete();
+
+    // If this lesson has a quiz, surface it instead of whisking the student
+    // away to the next lesson — they need to take it before moving on.
+    if (this.quizForLesson(this.selectedLesson?.id)) {
+      this.justCompletedLessonId = this.selectedLesson?.id ?? null;
+      return;
+    }
+
+    const next = this.allLessons[this.currentIndex + 1];
+    if (next) {
+      setTimeout(() => {
+        this.selectLesson(next.lesson, next.section);
+        setTimeout(() => this.videoEl?.nativeElement?.play(), 150);
+      }, 800);
+    }
+  }
+
+  quizForLesson(lessonId: number | undefined): Quiz | null {
+    if (!lessonId) return null;
+    return this.courseQuizzes.find(q => q.lessonId === lessonId) ?? null;
   }
 
   togglePlay(): void {

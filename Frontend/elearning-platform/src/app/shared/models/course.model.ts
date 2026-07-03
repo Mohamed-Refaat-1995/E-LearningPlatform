@@ -37,7 +37,13 @@ export interface Lesson {
   displayOrder: number;
   durationMinutes: number;
   isPreview: boolean;
-  contents?: LessonContent[];
+  // Flat content fields as actually returned by GET .../lessons (no nested "contents" array server-side)
+  contentType?: string;
+  videoUrl?: string;
+  videoPublicId?: string;
+  textContent?: string;
+  resourceUrl?: string;
+  contents?: LessonContent[]; // populated client-side only, right after a fresh upload in this session
   isExpanded?: boolean; // UI state only
 }
 
@@ -51,10 +57,17 @@ export interface LessonContent {
   resourceUrl?: string;
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  description?: string;
+  iconUrl?: string;
+}
+
 export interface CreateCourseRequest {
   title: string;
   description: string;
-  category: string;
+  categoryId: number;
   level: string;
   price: number;
   thumbnailUrl?: string;
@@ -82,6 +95,10 @@ export interface Review {
   content: string;
   helpfulCount: number;
   createdAt: Date;
+  instructorReply?: string;
+  repliedAt?: Date;
+  reactionCounts?: { [emoji: string]: number };
+  myReaction?: string;
 }
 
 export interface CreateReviewRequest {
@@ -130,6 +147,16 @@ export interface CourseEarning {
   pricePerSeat: number;
   totalRevenue: number;
   enrollmentCount: number;
+}
+
+export interface PublicInstructor {
+  id: number;
+  fullName: string;
+  bio?: string;
+  profileImageUrl?: string;
+  courseCount: number;
+  totalStudents: number;
+  averageRating: number;
 }
 
 export interface EnrolledStudent {

@@ -1,0 +1,152 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div>
+      <a routerLink="/instructor" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">← Dashboard</a>
+      <h1 class="text-2xl font-bold text-gray-800 mt-2">Settings</h1>
+      <p class="text-gray-500 text-sm mt-1">Manage your account</p>
+    </div>
+
+    @if (loading) {
+      <div class="bg-white rounded-xl shadow-sm p-8 text-center text-gray-500">Loading settings…</div>
+    } @else {
+      <!-- Personal information -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-2xl">👤</span>
+          <h3 class="font-semibold text-gray-800">Personal Information</h3>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">First Name</label>
+            <input [(ngModel)]="firstName" type="text"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Last Name</label>
+            <input [(ngModel)]="lastName" type="text"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Email</label>
+            <input [value]="email" type="email" disabled
+                   class="w-full border border-gray-200 bg-gray-50 text-gray-500 rounded-lg px-3 py-2 text-sm outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Mobile Number</label>
+            <input [(ngModel)]="phoneNumber" type="tel"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 mt-4">
+          <button (click)="saveProfile()" [disabled]="savingProfile"
+                  class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors">
+            {{ savingProfile ? 'Saving…' : 'Save Changes' }}
+          </button>
+          @if (profileMsg) {
+            <span [class]="profileMsg.type === 'success' ? 'text-green-600' : 'text-red-600'"
+                  class="text-sm font-medium">{{ profileMsg.text }}</span>
+          }
+        </div>
+      </div>
+
+      <!-- Change password -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-2xl">🔒</span>
+          <h3 class="font-semibold text-gray-800">Change Password</h3>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Current Password</label>
+            <input [(ngModel)]="currentPassword" type="password" autocomplete="current-password"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">New Password</label>
+            <input [(ngModel)]="newPassword" type="password" autocomplete="new-password"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Confirm Password</label>
+            <input [(ngModel)]="confirmPassword" type="password" autocomplete="new-password"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 mt-4">
+          <button (click)="savePassword()" [disabled]="savingPassword"
+                  class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors">
+            {{ savingPassword ? 'Saving…' : 'Update Password' }}
+          </button>
+          @if (passwordMsg) {
+            <span [class]="passwordMsg.type === 'success' ? 'text-green-600' : 'text-red-600'"
+                  class="text-sm font-medium">{{ passwordMsg.text }}</span>
+          }
+        </div>
+      </div>
+
+      <!-- Current sessions -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">🖥️</span>
+            <h3 class="font-semibold text-gray-800">Current Sessions</h3>
+          </div>
+          <button (click)="terminateOtherSessions()"
+                  [disabled]="terminatingOthers || otherSessionsCount() === 0"
+                  class="text-sm border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg font-medium disabled:opacity-40 transition-colors">
+            {{ terminatingOthers ? 'Terminating…' : 'Terminate other sessions' }}
+          </button>
+        </div>
+
+        @if (sessionsMsg) {
+          <p [class]="sessionsMsg.type === 'success' ? 'text-green-600' : 'text-red-600'"
+             class="text-sm font-medium mb-3">{{ sessionsMsg.text }}</p>
+        }
+
+        @if (loadingSessions) {
+          <p class="text-gray-500 text-sm">Loading sessions…</p>
+        } @else if (sessions.length === 0) {
+          <p class="text-gray-500 text-sm">No active sessions.</p>
+        } @else {
+          <div class="space-y-3">
+            @for (s of sessions; track s.id) {
+              <div class="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-lg p-3">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-gray-800">{{ s.browser || 'Unknown browser' }}</span>
+                    @if (s.isCurrent) {
+                      <span class="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">This device</span>
+                    }
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    {{ s.deviceName || 'Unknown device' }} · IP: {{ s.ipAddress || 'unknown' }}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-0.5">Last active: {{ formatDate(s.lastActivityAt) }}</div>
+                </div>
+                @if (!s.isCurrent) {
+                  <button (click)="terminateSession(s)" [disabled]="terminatingId === s.id"
+                          class="text-sm text-red-600 hover:underline disabled:opacity-40">
+                    {{ terminatingId === s.id ? 'Terminating…' : 'Terminate' }}
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <label class="flex items-start gap-2 mt-5 pt-4 border-t border-gray-100 cursor-pointer">
+          <input type="checkbox" [(ngModel)]="preventCredentialSave" (ngModelChange)="onPreventCredentialSaveChange()"
+                 class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+          <span class="text-sm text-gray-600">
+            Don't let the browser save my login credentials on this device
+            <span class="block text-xs text-gray-400">Applies to the sign-in form the next time you log in.</span>
+          </span>
+        </label>
+      </div>
+    }
+  </div>
+</div>

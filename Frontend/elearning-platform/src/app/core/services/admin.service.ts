@@ -43,6 +43,54 @@ export interface AdminCourseGridQuery {
   pageSize?: number;
 }
 
+export interface AdminPaymentGridItem {
+  paymentId: number;
+  transactionNo: string;
+  paidAt: string;
+  status: string;
+  paymentMethod: string;
+  courseId: number;
+  courseTitle: string;
+  studentId: number;
+  studentName: string;
+  instructorId: number;
+  instructorName: string;
+  paidAmount: number;
+  adminShare: number;
+  instructorShare: number;
+}
+
+export interface AdminPaymentGridQuery {
+  search?: string;
+  status?: number;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminEnrollmentGridItem {
+  enrollmentId: number;
+  studentId: number;
+  studentName: string;
+  instructorId: number;
+  instructorName: string;
+  courseId: number;
+  courseTitle: string;
+  isRefunded: boolean;
+  completionPercentage: number;
+  enrolledAt: string;
+}
+
+export interface AdminEnrollmentGridQuery {
+  search?: string;
+  isRefunded?: boolean;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -137,6 +185,32 @@ export class AdminService {
 
   refundPayment(paymentId: number): Observable<any> {
     return this.http.post(`${this.API_URL}/payments/${paymentId}/refund`, {});
+  }
+
+  /** Smart, filterable, paginated admin payments grid with the admin/instructor split. */
+  getAdminPayments(query: AdminPaymentGridQuery = {}): Observable<PagedResult<AdminPaymentGridItem>> {
+    let params = new HttpParams();
+    if (query.search) params = params.set('search', query.search);
+    if (query.status != null) params = params.set('status', query.status.toString());
+    if (query.sortBy) params = params.set('sortBy', query.sortBy);
+    if (query.sortDir) params = params.set('sortDir', query.sortDir);
+    params = params.set('page', String(query.page ?? 1));
+    params = params.set('pageSize', String(query.pageSize ?? 10));
+    return this.http.get<PagedResult<AdminPaymentGridItem>>(`${this.API_URL}/admin/payments`, { params });
+  }
+
+  // ─── Enrollments ──────────────────────────────────────────────────────────────
+
+  /** Smart, filterable, paginated admin enrollments grid with refund status and completion. */
+  getAdminEnrollments(query: AdminEnrollmentGridQuery = {}): Observable<PagedResult<AdminEnrollmentGridItem>> {
+    let params = new HttpParams();
+    if (query.search) params = params.set('search', query.search);
+    if (query.isRefunded != null) params = params.set('isRefunded', String(query.isRefunded));
+    if (query.sortBy) params = params.set('sortBy', query.sortBy);
+    if (query.sortDir) params = params.set('sortDir', query.sortDir);
+    params = params.set('page', String(query.page ?? 1));
+    params = params.set('pageSize', String(query.pageSize ?? 10));
+    return this.http.get<PagedResult<AdminEnrollmentGridItem>>(`${this.API_URL}/admin/enrollments`, { params });
   }
 
   // ─── Admin Management ────────────────────────────────────────────────────────

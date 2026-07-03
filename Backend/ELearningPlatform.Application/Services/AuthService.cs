@@ -86,10 +86,19 @@ public class AuthService : IAuthService
         email = email.Trim().ToLowerInvariant();
         var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Email == email);
 
+        if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+        {
+            return (false, "Invalid email or password", null, null, null, null);
+        }
 
         if (!user.IsEmailVerified)
         {
             return (false, "EMAIL_NOT_VERIFIED", null, null, null, null);
+        }
+
+        if (!user.IsActive)
+        {
+            return (false, "Your account has been disabled. Please contact support.", null, null, null, null);
         }
 
         var role = user.Role.ToString();
@@ -223,7 +232,7 @@ public class AuthService : IAuthService
         return (true, "Password reset successfully");
     }
 
-    public async Task<(bool Success, string Message, string? Token, string? RefreshToken, int? UserId, string? Role)> GoogleLoginAsync(string idToken, string? userAgent = null, string? ipAddress = null)
+    public async Task<(bool Success, string Message, string? Token, string? RefreshToken, int? UserId, string? Role, string? Email)> GoogleLoginAsync(string idToken, int? role = null, string? userAgent = null, string? ipAddress = null)
     {
         GoogleJsonWebSignature.Payload payload;
         try
@@ -236,7 +245,7 @@ public class AuthService : IAuthService
         }
         catch
         {
-            return (false, "Invalid Google token", null, null, null, null);
+            return (false, "Invalid Google token", null, null, null, null, null);
         }
 
         var email = payload.Email;
@@ -244,30 +253,46 @@ public class AuthService : IAuthService
 
         if (user == null)
         {
-            user = new Student
-            {
-                FirstName = payload.GivenName ?? email.Split('@')[0],
-                LastName = payload.FamilyName ?? "",
-                Email = email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
-                Role = UserRoleEnum.Student,
-                IsEmailVerified = true,
-                IsActive = true,
-                ProfileImageUrl = payload.Picture
-            };
+            // Only honor the requested role (Student/Instructor) when creating a
+            // brand-new account; an existing account always keeps its own role.
+            var allowedRolesToBeRegisteded = new[] { (int)UserRoleEnum.Student, (int)UserRoleEnum.Instructor };
+            var newUserRole = role.HasValue && allowedRolesToBeRegisteded.Contains(role.Value)
+                ? (UserRoleEnum)role.Value
+                : UserRoleEnum.Student;
+
+            user = newUserRole == UserRoleEnum.Instructor ? new Instructor() : new Student();
+            user.FirstName = payload.GivenName ?? email.Split('@')[0];
+            user.LastName = payload.FamilyName ?? "";
+            user.Email = email;
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
+            user.Role = newUserRole;
+            user.IsEmailVerified = true;
+            user.IsActive = true;
+            user.ProfileImageUrl = payload.Picture;
+
             await _unitOfWork.Users.AddAsync(user);
             await _unitOfWork.SaveChangesAsync();
 
         }
+        else if (!user.IsEmailVerified)
+        {
+            // Google has already proven ownership of this email address, so a
+            // previously self-registered-but-unverified account can be trusted
+            // and activated now instead of forcing the OTP flow.
+            user.IsEmailVerified = true;
+            user.IsActive = true;
+            _unitOfWork.Users.Update(user);
+            await _unitOfWork.SaveChangesAsync();
+        }
 
         if (!user.IsActive)
         {
-            return (false, "User account is inactive", null, null, null, null);
+            return (false, "User account is inactive", null, null, null, null, null);
         }
 
-        var role = user.Role.ToString();
+        var userRole = user.Role.ToString();
         var sessionToken = await CreateSessionAsync(user.Id, userAgent, ipAddress);
-        var jwtToken = GenerateJwtToken(user.Id, user.Email, role, sessionToken);
+        var jwtToken = GenerateJwtToken(user.Id, user.Email, userRole, sessionToken);
         var refreshToken = GenerateRefreshToken();
 
         user.LastLoginAt = DateTime.UtcNow;
@@ -275,7 +300,7 @@ public class AuthService : IAuthService
         await _unitOfWork.SaveChangesAsync();
 
 
-        return (true, "Login successful", jwtToken, refreshToken, user.Id, role);
+        return (true, "Login successful", jwtToken, refreshToken, user.Id, userRole, user.Email);
     }
 
     public string GenerateJwtToken(int userId, string email, string role, string? sessionId = null)

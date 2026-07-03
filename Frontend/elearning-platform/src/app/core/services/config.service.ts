@@ -10,6 +10,10 @@ export class ConfigService {
     return this.config.apiUrl;
   }
 
+  get hubUrl(): string {
+    return this.config.apiUrl.replace(/\/api\/?$/, '');
+  }
+
   load(): Promise<void> {
     return fetch('/assets/config.json')
       .then(r => r.json())

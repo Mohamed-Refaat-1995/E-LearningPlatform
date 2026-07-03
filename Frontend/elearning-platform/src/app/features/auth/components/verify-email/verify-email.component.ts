@@ -36,6 +36,16 @@ export class VerifyEmailComponent implements OnInit, OnDestroy {
     if (this.countdownInterval) clearInterval(this.countdownInterval);
   }
 
+  /**
+   * Without this, Angular's default *ngFor differ tracks primitive array
+   * items by value — since most boxes share the same '' value, it can reuse
+   * the wrong DOM node for a position when one box's value changes, causing
+   * a typed digit to visually land in two boxes at once.
+   */
+  trackByIndex(index: number): number {
+    return index;
+  }
+
   onInput(event: Event, index: number): void {
     const input = event.target as HTMLInputElement;
     const val = input.value.replace(/\D/g, '').slice(-1);

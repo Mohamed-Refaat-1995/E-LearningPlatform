@@ -2,7 +2,7 @@ export interface Quiz {
   id: number;
   title: string;
   description?: string;
-  courseId: number;
+  lessonId: number;
   timeLimit: number;
   passingScore: number;
   isPublished: boolean;
@@ -68,7 +68,7 @@ export interface SubmitQuizRequest {
 export interface CreateQuizRequest {
   title: string;
   description?: string;
-  courseId: number;
+  lessonId: number;
   timeLimit: number;
   passingScore: number;
   displayOrder: number;

@@ -1,5 +1,6 @@
 using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
+using Microsoft.Extensions.Configuration;
 using System.Linq;
 
 namespace ELearningPlatform.Application.Services;
@@ -7,10 +8,20 @@ namespace ELearningPlatform.Application.Services;
 public class EnrollmentService : IEnrollmentService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICertificateService _certificateService;
+    private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;
 
-    public EnrollmentService(IUnitOfWork unitOfWork)
+    public EnrollmentService(
+        IUnitOfWork unitOfWork,
+        ICertificateService certificateService,
+        IEmailService emailService,
+        IConfiguration configuration)
     {
         _unitOfWork = unitOfWork;
+        _certificateService = certificateService;
+        _emailService = emailService;
+        _configuration = configuration;
     }
 
     public async Task<Enrollment?> GetEnrollmentAsync(int studentId, int courseId)
@@ -105,6 +116,15 @@ public class EnrollmentService : IEnrollmentService
         _unitOfWork.Enrollments.Update(enrollment);
 
         await _unitOfWork.SaveChangesAsync();
+
+        try
+        {
+            await GenerateCertificateIfEligibleAsync(enrollment.StudentId, enrollment.CourseId);
+        }
+        catch
+        {
+            // Certificate/email issuance must never break lesson-progress saving.
+        }
     }
 
     public async Task<decimal> CalculateCompletionPercentageAsync(int enrollmentId)
@@ -156,5 +176,81 @@ public class EnrollmentService : IEnrollmentService
         }
 
         return lessons;
+    }
+
+    public async Task<CourseCompletionStatusResult> GetCourseCompletionStatusAsync(int studentId, int courseId)
+    {
+        var enrollment = await GetEnrollmentAsync(studentId, courseId);
+        var lessons = (await GetEnrollmentLessonsAsync(courseId)).ToList();
+        var lessonIds = lessons.Select(l => l.Id).ToList();
+
+        decimal completionPercentage = 0;
+        var allLessonsCompleted = false;
+        if (enrollment != null && lessons.Count > 0)
+        {
+            completionPercentage = await CalculateCompletionPercentageAsync(enrollment.Id);
+            allLessonsCompleted = completionPercentage >= 100;
+        }
+
+        var quizzes = lessonIds.Count == 0
+            ? new List<Quiz>()
+            : (await _unitOfWork.Quizzes.FindAsync(q =>
+                lessonIds.Contains(q.LessonId.HasValue ? q.LessonId.Value : 0) && q.IsPublished && !q.IsDeleted)).ToList();
+
+        var allQuizzesPassed = true;
+        foreach (var quiz in quizzes)
+        {
+            var passedResult = await _unitOfWork.QuizResults.FirstOrDefaultAsync(qr =>
+                qr.QuizId == quiz.Id && qr.StudentId == studentId && qr.IsPassed && !qr.IsDeleted);
+            if (passedResult == null)
+            {
+                allQuizzesPassed = false;
+                break;
+            }
+        }
+
+        var isCourseComplete = allLessonsCompleted && allQuizzesPassed;
+        var certificate = await _certificateService.GetCertificateAsync(studentId, courseId);
+
+        return new CourseCompletionStatusResult
+        {
+            CompletionPercentage = completionPercentage,
+            AllLessonsCompleted = allLessonsCompleted,
+            AllQuizzesPassed = allQuizzesPassed,
+            IsCourseComplete = isCourseComplete,
+            IsCertificateEligible = isCourseComplete,
+            HasCertificate = certificate != null,
+            CertificateId = certificate?.Id
+        };
+    }
+
+    public async Task<Certificate?> GenerateCertificateIfEligibleAsync(int studentId, int courseId)
+    {
+        var existing = await _certificateService.GetCertificateAsync(studentId, courseId);
+        if (existing != null) return existing;
+
+        var status = await GetCourseCompletionStatusAsync(studentId, courseId);
+        if (!status.IsCourseComplete) return null;
+
+        var certificate = await _certificateService.GenerateCertificateAsync(studentId, courseId);
+
+        try
+        {
+            var student = await _unitOfWork.Users.GetByIdAsync(studentId);
+            var course = await _unitOfWork.Courses.GetByIdAsync(courseId);
+            if (student != null && course != null)
+            {
+                var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:4200";
+                var certificateUrl = $"{frontendUrl}/verify-certificate/{certificate.VerificationCode}";
+                await _emailService.SendCertificateReadyEmailAsync(
+                    student.Email, $"{student.FirstName} {student.LastName}".Trim(), course.Title, certificateUrl);
+            }
+        }
+        catch
+        {
+            // A failed email send must not roll back a successfully issued certificate.
+        }
+
+        return certificate;
     }
 }

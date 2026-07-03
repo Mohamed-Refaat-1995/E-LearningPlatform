@@ -18,6 +18,10 @@ export const appRoutes: Routes = [
     loadChildren: () => import('./features/courses/courses.routes').then(m => m.COURSES_ROUTES)
   },
   {
+    path: 'instructors',
+    loadChildren: () => import('./features/instructors/instructors.routes').then(m => m.INSTRUCTORS_ROUTES)
+  },
+  {
     path: 'dashboard',
     canActivate: [authGuard],
     loadChildren: () => import('./features/student-dashboard/student-dashboard.routes').then(m => m.STUDENT_DASHBOARD_ROUTES)
@@ -44,10 +48,20 @@ export const appRoutes: Routes = [
     loadChildren: () => import('./features/payment/payment.routes').then(m => m.PAYMENT_ROUTES)
   },
   {
+    path: 'cart',
+    canActivate: [authGuard],
+    loadChildren: () => import('./features/cart/cart.routes').then(m => m.CART_ROUTES)
+  },
+  {
     path: 'admin',
     canActivate: [authGuard, roleGuard],
     data: { roles: [3] },
     loadChildren: () => import('./features/admin/admin.routes').then(m => m.ADMIN_ROUTES)
+  },
+  {
+    path: 'verify-certificate',
+    loadComponent: () => import('./features/verify-certificate/verify-certificate.component')
+      .then(m => m.VerifyCertificateComponent)
   },
   {
     path: 'verify-certificate/:code',

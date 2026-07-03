@@ -7,6 +7,9 @@ public class QuizResult : BaseEntity
     public int StudentId { get; set; }
     public Student Student { get; set; } = null!;
     public decimal Score { get; set; }
+    public decimal MaxScore { get; set; }
+    public decimal Percentage { get; set; }
+    public bool IsPassed { get; set; }
     public int TimeSpentSeconds { get; set; }
     public DateTime TakenAt { get; set; } = DateTime.UtcNow;
 

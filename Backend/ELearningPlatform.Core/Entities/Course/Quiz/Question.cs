@@ -10,4 +10,8 @@ public class Question : BaseEntity
     public int DisplayOrder { get; set; }
 
     public ICollection<Answer> Answers { get; set; } = new List<Answer>();
+
+    /// <summary>The answer the instructor has designated as correct for this question.</summary>
+    public int? CorrectAnswerId { get; set; }
+    public Answer? CorrectAnswer { get; set; }
 }

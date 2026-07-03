@@ -1,6 +1,7 @@
 using ELearningPlatform.Application;
 using ELearningPlatform.Application.DTOs.Admin;
 using ELearningPlatform.Core;
+using ELearningPlatform.Core.Interfaces;
 using ELearningPlatform.Infrastructure.DbContext;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,10 +16,12 @@ namespace ELearningPlatform.API.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IDemoDataSeederService _demoDataSeederService;
 
-    public AdminController(AppDbContext db)
+    public AdminController(AppDbContext db, IDemoDataSeederService demoDataSeederService)
     {
         _db = db;
+        _demoDataSeederService = demoDataSeederService;
     }
 
     private bool TryGetUserId(out int userId)
@@ -162,6 +165,212 @@ public class AdminController : ControllerBase
         return Ok(new GenericResponseDTO<PagedResultDto<AdminCourseGridItemDto>>(true, result));
     }
 
+    /// <summary>
+    /// Smart, filterable, paginated grid of every payment, one row per course
+    /// purchased, with the student/instructor identity and the admin/instructor
+    /// profit split (based on the matching enrollment's snapshotted percentage).
+    /// </summary>
+    [HttpGet("payments")]
+    public async Task<IActionResult> GetPaymentsGrid(
+        [FromQuery] string? search,
+        [FromQuery] PaymentStatusEnum? status,
+        [FromQuery] string? sortBy,
+        [FromQuery] string? sortDir,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var pct = await GetPlatformProfitPercentageAsync();
+
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+
+        var query = _db.Payments
+            .Where(p => !p.IsDeleted)
+            .SelectMany(p => p.Order.Items, (p, oi) => new { p, oi });
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(x =>
+                x.oi.Course.Title.Contains(term) ||
+                (x.p.Order.Student.FirstName + " " + x.p.Order.Student.LastName).Contains(term) ||
+                (x.oi.Course.Instructor.FirstName + " " + x.oi.Course.Instructor.LastName).Contains(term) ||
+                x.p.TransactionNo.Contains(term));
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.p.Status == status.Value);
+        }
+
+        var desc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+        query = (sortBy?.ToLowerInvariant()) switch
+        {
+            "amount" => desc ? query.OrderByDescending(x => x.oi.Price) : query.OrderBy(x => x.oi.Price),
+            "paidat" => desc ? query.OrderByDescending(x => x.p.PaidAt) : query.OrderBy(x => x.p.PaidAt),
+            _ => query.OrderByDescending(x => x.p.PaidAt)
+        };
+
+        var totalCount = await query.CountAsync();
+
+        var rows = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new
+            {
+                x.p.Id,
+                x.p.TransactionNo,
+                x.p.PaidAt,
+                x.p.Status,
+                x.p.PaymentMethod,
+                Amount = x.oi.Price,
+                x.oi.CourseId,
+                CourseTitle = x.oi.Course.Title,
+                StudentId = x.p.Order.StudentId,
+                StudentFirst = x.p.Order.Student.FirstName,
+                StudentLast = x.p.Order.Student.LastName,
+                InstructorId = x.oi.Course.InstructorId,
+                InstructorFirst = x.oi.Course.Instructor.FirstName,
+                InstructorLast = x.oi.Course.Instructor.LastName,
+                // The enrollment created at purchase time snapshots the admin
+                // percentage that actually applied to this sale.
+                AdminPercentage = _db.Enrollments
+                    .Where(e => e.StudentId == x.p.Order.StudentId && e.CourseId == x.oi.CourseId)
+                    .Select(e => (decimal?)e.AdminPercentage)
+                    .FirstOrDefault()
+            })
+            .ToListAsync();
+
+        var items = rows.Select(r =>
+        {
+            var adminPct = r.AdminPercentage ?? pct;
+            var adminShare = Math.Round(r.Amount * adminPct / 100m, 2);
+            return new AdminPaymentGridItemDto
+            {
+                PaymentId = r.Id,
+                TransactionNo = r.TransactionNo,
+                PaidAt = r.PaidAt,
+                Status = r.Status.ToString(),
+                PaymentMethod = r.PaymentMethod.ToString(),
+                CourseId = r.CourseId,
+                CourseTitle = r.CourseTitle,
+                StudentId = r.StudentId,
+                StudentName = $"{r.StudentFirst} {r.StudentLast}".Trim(),
+                InstructorId = r.InstructorId,
+                InstructorName = $"{r.InstructorFirst} {r.InstructorLast}".Trim(),
+                PaidAmount = r.Amount,
+                AdminShare = adminShare,
+                InstructorShare = r.Amount - adminShare
+            };
+        }).ToList();
+
+        var result = new PagedResultDto<AdminPaymentGridItemDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+            ProfitPercentage = pct
+        };
+
+        return Ok(new GenericResponseDTO<PagedResultDto<AdminPaymentGridItemDto>>(true, result));
+    }
+
+    /// <summary>
+    /// Smart, filterable, paginated grid of every enrollment with the
+    /// student/instructor identity, refund status and completion progress.
+    /// </summary>
+    [HttpGet("enrollments")]
+    public async Task<IActionResult> GetEnrollmentsGrid(
+        [FromQuery] string? search,
+        [FromQuery] bool? isRefunded,
+        [FromQuery] string? sortBy,
+        [FromQuery] string? sortDir,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+
+        var query = _db.Enrollments.Where(e => !e.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(e =>
+                e.Course.Title.Contains(term) ||
+                (e.Student.FirstName + " " + e.Student.LastName).Contains(term) ||
+                (e.Course.Instructor.FirstName + " " + e.Course.Instructor.LastName).Contains(term));
+        }
+
+        if (isRefunded.HasValue)
+        {
+            query = query.Where(e => e.IsRefunded == isRefunded.Value);
+        }
+
+        var desc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+        query = (sortBy?.ToLowerInvariant()) switch
+        {
+            "completion" => desc
+                ? query.OrderByDescending(e => e.CompletionPercentage)
+                : query.OrderBy(e => e.CompletionPercentage),
+            "enrolledat" => desc
+                ? query.OrderByDescending(e => e.EnrolledAt)
+                : query.OrderBy(e => e.EnrolledAt),
+            _ => query.OrderByDescending(e => e.EnrolledAt)
+        };
+
+        var totalCount = await query.CountAsync();
+
+        var rows = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(e => new
+            {
+                e.Id,
+                e.StudentId,
+                StudentFirst = e.Student.FirstName,
+                StudentLast = e.Student.LastName,
+                InstructorId = e.Course.InstructorId,
+                InstructorFirst = e.Course.Instructor.FirstName,
+                InstructorLast = e.Course.Instructor.LastName,
+                e.CourseId,
+                CourseTitle = e.Course.Title,
+                e.IsRefunded,
+                e.CompletionPercentage,
+                e.EnrolledAt
+            })
+            .ToListAsync();
+
+        var items = rows.Select(r => new AdminEnrollmentGridItemDto
+        {
+            EnrollmentId = r.Id,
+            StudentId = r.StudentId,
+            StudentName = $"{r.StudentFirst} {r.StudentLast}".Trim(),
+            InstructorId = r.InstructorId,
+            InstructorName = $"{r.InstructorFirst} {r.InstructorLast}".Trim(),
+            CourseId = r.CourseId,
+            CourseTitle = r.CourseTitle,
+            IsRefunded = r.IsRefunded,
+            CompletionPercentage = r.CompletionPercentage,
+            EnrolledAt = r.EnrolledAt
+        }).ToList();
+
+        var result = new PagedResultDto<AdminEnrollmentGridItemDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+        };
+
+        return Ok(new GenericResponseDTO<PagedResultDto<AdminEnrollmentGridItemDto>>(true, result));
+    }
+
     /// <summary>Returns the current platform profit percentage (applies to new sales).</summary>
     [HttpGet("profit-percentage")]
     public async Task<IActionResult> GetProfitPercentage()
@@ -238,6 +447,25 @@ public class AdminController : ControllerBase
 
         return Ok(new GenericResponseDTO<object>(true, new { refundPeriodDays = admin.RefundPeriodDays },
             "Refund period updated successfully"));
+    }
+
+    /// <summary>
+    /// One-off dev utility: seeds demo instructors with full courses (sections, lessons,
+    /// real uploaded Cloudinary videos, some resource files and quizzes, mixed free/paid).
+    /// Safe to re-run — instructors that already exist (by email) are skipped.
+    /// </summary>
+    [HttpPost("seed-demo-data")]
+    public async Task<IActionResult> SeedDemoData([FromBody] SeedDemoDataRequest? request)
+    {
+        try
+        {
+            var result = await _demoDataSeederService.SeedAsync(request ?? new SeedDemoDataRequest());
+            return Ok(new GenericResponseDTO<object>(true, result, "Demo data seeded successfully"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new GenericResponseDTO<object>(false, ex.Message));
+        }
     }
 
     /// <summary>The single platform-rate owner = the admin with the lowest id.</summary>

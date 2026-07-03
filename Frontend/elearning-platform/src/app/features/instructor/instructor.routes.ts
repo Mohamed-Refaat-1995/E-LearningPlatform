@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { unsavedCourseGuard } from '@core/guards/unsaved-course.guard';
 
 export const INSTRUCTOR_ROUTES: Routes = [
   {
@@ -24,12 +25,8 @@ export const INSTRUCTOR_ROUTES: Routes = [
       {
         path: 'course-builder/:courseId',
         loadComponent: () => import('./components/course-builder/course-builder.component')
-          .then(m => m.CourseBuilderComponent)
-      },
-      {
-        path: 'quizzes/:courseId',
-        loadComponent: () => import('./components/quiz-builder/quiz-builder.component')
-          .then(m => m.QuizBuilderComponent)
+          .then(m => m.CourseBuilderComponent),
+        canDeactivate: [unsavedCourseGuard]
       },
       {
         path: 'earnings',
@@ -42,6 +39,11 @@ export const INSTRUCTOR_ROUTES: Routes = [
           .then(m => m.CouponsComponent)
       },
       {
+        path: 'students',
+        loadComponent: () => import('./components/my-students/my-students.component')
+          .then(m => m.MyStudentsComponent)
+      },
+      {
         path: 'students/:courseId',
         loadComponent: () => import('./components/students/students.component')
           .then(m => m.StudentsComponent)
@@ -50,6 +52,21 @@ export const INSTRUCTOR_ROUTES: Routes = [
         path: 'qa/:courseId',
         loadComponent: () => import('./components/qa/qa.component')
           .then(m => m.QaComponent)
+      },
+      {
+        path: 'reviews',
+        loadComponent: () => import('./components/reviews/reviews.component')
+          .then(m => m.ReviewsComponent)
+      },
+      {
+        path: 'settings',
+        loadComponent: () => import('./components/instructor-settings/instructor-settings.component')
+          .then(m => m.InstructorSettingsComponent)
+      },
+      {
+        path: 'notifications',
+        loadComponent: () => import('./components/notifications/notifications.component')
+          .then(m => m.InstructorNotificationsComponent)
       }
     ]
   }

@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { UserService } from '@core/services/user.service';
@@ -9,7 +10,7 @@ import { CertificateVerification } from '@shared/models/certificate.model';
 @Component({
   selector: 'app-verify-certificate',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './verify-certificate.component.html',
   styleUrl: './verify-certificate.component.scss'
 })
@@ -22,18 +23,25 @@ export class VerifyCertificateComponent implements OnInit, OnDestroy {
 
   constructor(
     private userService: UserService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
     this.route.params.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.code = params['code'];
-      this.verify();
+      this.code = params['code'] || '';
+      if (this.code) this.verify();
     });
+  }
+
+  onSubmit(): void {
+    if (!this.code.trim()) return;
+    this.router.navigate(['/verify-certificate', this.code.trim()]);
   }
 
   verify(): void {
     this.loading = true;
+    this.verification = null;
     this.userService.verifyCertificate(this.code)
       .pipe(takeUntil(this.destroy$))
       .subscribe({

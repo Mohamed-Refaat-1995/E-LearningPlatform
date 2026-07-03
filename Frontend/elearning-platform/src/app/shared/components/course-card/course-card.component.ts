@@ -1,7 +1,8 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { Course } from '@shared/models/course.model';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-course-card',
@@ -12,6 +13,16 @@ import { Course } from '@shared/models/course.model';
 })
 export class CourseCardComponent {
   @Input({ required: true }) course!: Course;
+  @Input() redirectGuestToAuth = false;
+
+  constructor(private router: Router, private authService: AuthService) {}
+
+  onCardClick(event: MouseEvent): void {
+    if (this.redirectGuestToAuth && !this.authService.getCurrentUserSnapshot()) {
+      event.preventDefault();
+      this.router.navigate(['/auth/login'], { queryParams: { returnUrl: `/courses/${this.course.id}` } });
+    }
+  }
 
   get stars(): string {
     const r = Math.round(this.course.averageRating || 0);

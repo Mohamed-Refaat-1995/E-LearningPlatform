@@ -9,4 +9,8 @@ public class Review : BaseEntity
     public int Rating { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
+    public string? InstructorReply { get; set; }
+    public DateTime? RepliedAt { get; set; }
+
+    public ICollection<ReviewReaction> Reactions { get; set; } = new List<ReviewReaction>();
 }

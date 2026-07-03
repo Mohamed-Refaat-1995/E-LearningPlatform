@@ -23,6 +23,10 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./components/payment-management/payment-management.component').then(m => m.PaymentManagementComponent)
       },
       {
+        path: 'enrollments',
+        loadComponent: () => import('./components/enrollment-management/enrollment-management.component').then(m => m.EnrollmentManagementComponent)
+      },
+      {
         path: 'reports',
         loadComponent: () => import('./components/reports/reports.component').then(m => m.ReportsComponent)
       },

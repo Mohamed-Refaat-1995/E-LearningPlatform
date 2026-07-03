@@ -1,11 +1,13 @@
 ﻿using ELearningPlatform.Application.Services;
 using ELearningPlatform.Core.Interfaces;
+using ELearningPlatform.API.Hubs;
 using ELearningPlatform.API.Middleware;
 using ELearningPlatform.Infrastructure.Cloudinary;
 using ELearningPlatform.Infrastructure.DbContext;
 using ELearningPlatform.Infrastructure.UnitOfWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -67,8 +69,20 @@ builder.Services.AddCors(options =>
             "https://angular.runasp.net", 
             "http://localhost:4200", "https://localhost:4200")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
+});
+
+// Raise the request body size limit (default ~28.6 MB) so lesson video uploads aren't
+// silently dropped mid-upload — a dropped connection here surfaces in the browser as a
+// misleading CORS error since no response (and thus no CORS header) is ever sent back.
+// (Per-endpoint [RequestSizeLimit]/[RequestFormLimits] on UploadVideo cover the IIS/IIS
+// Express in-process hosting scenario; this covers the plain-Kestrel launch profile.)
+const long maxUploadBytes = 1024L * 1024 * 1024; // 1 GB
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = maxUploadBytes;
 });
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -104,6 +118,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                         context.Fail("Session has been terminated.");
                     }
                 }
+            },
+
+            // SignalR's WebSocket upgrade request can't carry a custom Authorization header,
+            // so the client passes the JWT as a query string param instead.
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
             }
         };
     });
@@ -129,12 +156,17 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<INotificationPusher, SignalRNotificationPusher>();
 
 builder.Services.AddScoped<ICloudinaryVideoService, CloudinaryVideoService>();
+builder.Services.AddScoped<IDemoDataSeederService, DemoDataSeederService>();
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 builder.Services.AddMemoryCache();
+
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -159,6 +191,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 using (var scope = app.Services.CreateScope())
 {

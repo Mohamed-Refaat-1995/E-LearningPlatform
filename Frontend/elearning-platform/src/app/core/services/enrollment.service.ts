@@ -40,8 +40,4 @@ export class EnrollmentService {
   requestRefund(enrollmentId: number, reason?: string): Observable<any> {
     return this.http.post(`${this.API_URL}/${enrollmentId}/refund`, { reason: reason || null });
   }
-
-  getCoursePriceBreakdown(courseId: number): Observable<any> {
-    return this.http.get(`${this.API_URL}/courses/${courseId}/price-breakdown`);
-  }
 }

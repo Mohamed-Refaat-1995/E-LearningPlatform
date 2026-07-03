@@ -3,11 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { InstructorService } from '@core/services/instructor.service';
-import { AuthService } from '@core/services/auth.service';
+import { debounceTime, takeUntil } from 'rxjs/operators';
+import {
+  InstructorService, InstructorRevenueSummary, InstructorRevenueGridItem, RevenueRange
+} from '@core/services/instructor.service';
 import { ToastService } from '@core/services/toast.service';
-import { InstructorEarnings, CourseEarning } from '@shared/models/course.model';
 
 @Component({
   selector: 'app-earnings',
@@ -17,61 +17,137 @@ import { InstructorEarnings, CourseEarning } from '@shared/models/course.model';
   styleUrl: './earnings.component.scss'
 })
 export class EarningsComponent implements OnInit, OnDestroy {
-  earnings: InstructorEarnings | null = null;
+  readonly rangePresets: { value: RevenueRange; label: string }[] = [
+    { value: 'today', label: 'Today' },
+    { value: 'week', label: 'Last 7 Days' },
+    { value: 'month', label: 'Last Month' },
+    { value: 'year', label: 'Last Year' },
+    { value: 'all', label: 'All Time' }
+  ];
+
+  summary: InstructorRevenueSummary | null = null;
+  rows: InstructorRevenueGridItem[] = [];
   loading = false;
-  sortBy: 'revenue' | 'students' | 'rating' = 'revenue';
+  loadingSummary = false;
+
+  range: RevenueRange = 'all';
+  customFrom = '';
+  customTo = '';
+
+  search = '';
+  type: '' | 'purchase' | 'refund' = '';
+  sortBy = 'date';
+  sortDir: 'asc' | 'desc' = 'desc';
+  page = 1;
+  pageSize = 10;
+  totalCount = 0;
+  totalPages = 0;
 
   private destroy$ = new Subject<void>();
+  private search$ = new Subject<void>();
 
   constructor(
     private instructorService: InstructorService,
-    private authService: AuthService,
     private toast: ToastService
   ) {}
 
   ngOnInit(): void {
-    this.authService.getCurrentUser$()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(user => {
-        if (!user) return;
-        this.loadEarnings(user.id);
-      });
+    this.search$.pipe(debounceTime(350), takeUntil(this.destroy$)).subscribe(() => {
+      this.page = 1;
+      this.loadGrid();
+    });
+    this.loadAll();
   }
 
-  loadEarnings(instructorId: number): void {
-    this.loading = true;
-    this.instructorService.getEarnings(instructorId)
+  loadAll(): void {
+    this.loadSummary();
+    this.loadGrid();
+  }
+
+  setRange(range: RevenueRange): void {
+    this.range = range;
+    if (range !== 'custom') {
+      this.page = 1;
+      this.loadAll();
+    }
+  }
+
+  applyCustomRange(): void {
+    if (!this.customFrom || !this.customTo) return;
+    this.range = 'custom';
+    this.page = 1;
+    this.loadAll();
+  }
+
+  loadSummary(): void {
+    this.loadingSummary = true;
+    this.instructorService.getRevenueSummary(this.range, this.customFrom || undefined, this.customTo || undefined)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: data => {
-          this.earnings = data;
-          this.loading = false;
-        },
+        next: data => { this.summary = data; this.loadingSummary = false; },
         error: () => {
-          this.loading = false;
-          this.toast.error('Failed to load earnings data.');
+          this.loadingSummary = false;
+          this.toast.error('Failed to load revenue summary.');
         }
       });
   }
 
-  get sortedCourses(): CourseEarning[] {
-    if (!this.earnings?.courses) return [];
-    return [...this.earnings.courses].sort((a, b) => {
-      if (this.sortBy === 'revenue') return b.totalRevenue - a.totalRevenue;
-      if (this.sortBy === 'students') return b.enrollmentCount - a.enrollmentCount;
-      return 0;
-    });
+  loadGrid(): void {
+    this.loading = true;
+    this.instructorService.getRevenueGrid({
+      search: this.search || undefined,
+      range: this.range,
+      from: this.customFrom || undefined,
+      to: this.customTo || undefined,
+      type: this.type || undefined,
+      sortBy: this.sortBy,
+      sortDir: this.sortDir,
+      page: this.page,
+      pageSize: this.pageSize
+    })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: res => {
+          this.rows = res.items;
+          this.totalCount = res.totalCount;
+          this.totalPages = res.totalPages;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+          this.toast.error('Failed to load revenue details.');
+        }
+      });
   }
 
-  maxRevenue(): number {
-    if (!this.earnings?.courses?.length) return 1;
-    return Math.max(...this.earnings.courses.map(c => c.totalRevenue), 1);
+  onSearchChange(): void {
+    this.search$.next();
   }
 
-  revenuePercent(course: CourseEarning): number {
-    const max = this.maxRevenue();
-    if (max === 0) return 0;
-    return Math.round((course.totalRevenue / max) * 100);
+  onFilterChange(): void {
+    this.page = 1;
+    this.loadGrid();
+  }
+
+  sortByColumn(col: string): void {
+    if (this.sortBy === col) {
+      this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortBy = col;
+      this.sortDir = 'asc';
+    }
+    this.loadGrid();
+  }
+
+  sortIcon(col: string): string {
+    if (this.sortBy !== col) return '';
+    return this.sortDir === 'asc' ? '▲' : '▼';
+  }
+
+  goToPage(p: number): void {
+    if (p < 1 || p > this.totalPages) return;
+    this.page = p;
+    this.loadGrid();
   }
 
   ngOnDestroy(): void {

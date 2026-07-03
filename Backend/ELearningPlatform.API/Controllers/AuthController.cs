@@ -144,7 +144,8 @@ public class AuthController : ControllerBase
         var userAgent = Request.Headers["User-Agent"].ToString();
         var ipAddress = GetClientIpAddress();
 
-        var (success, message, token, refreshToken, userId, role) = await _authService.GoogleLoginAsync(request.IdToken,
+        var (success, message, token, refreshToken, userId, role, email) = await _authService.GoogleLoginAsync(request.IdToken,
+                                                                                                        request.Role,
                                                                                                         userAgent,
                                                                                                         ipAddress);
 
@@ -154,7 +155,7 @@ public class AuthController : ControllerBase
             {
                 Token = token!,
                 RefreshToken = refreshToken!,
-                Email = "",
+                Email = email ?? "",
                 Role = role ?? "Student",
                 UserId = userId ?? 0
             }, "Logged in successfully"));

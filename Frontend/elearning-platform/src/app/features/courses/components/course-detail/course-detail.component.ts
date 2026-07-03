@@ -9,6 +9,7 @@ import { EnrollmentService } from '@core/services/enrollment.service';
 import { AuthService } from '@core/services/auth.service';
 import { CouponService } from '@core/services/coupon.service';
 import { AdminService } from '@core/services/admin.service';
+import { CartService } from '@core/services/cart.service';
 import { FormsModule } from '@angular/forms';
 import { Course, CreateReviewRequest } from '@shared/models/course.model';
 
@@ -59,6 +60,7 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private couponService: CouponService,
     private adminService: AdminService,
+    private cartService: CartService,
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder
@@ -149,6 +151,19 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
     );
   }
 
+  get allLessonsFree(): boolean {
+    const lessons = (this.course?.sections || []).flatMap(sec => sec.lessons || []);
+    return lessons.length > 0 && lessons.every((l: any) => l.isPreview);
+  }
+
+  goToFreeCourse(): void {
+    if (!this.authService.getToken()) {
+      this.router.navigate(['/auth/login'], { queryParams: { returnUrl: `/courses/${this.courseId}` } });
+      return;
+    }
+    this.enrollFree();
+  }
+
   // ─── Free preview modal ──────────────────────────────────────
 
   openPreview(lesson: any): void {
@@ -163,9 +178,10 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
 
   private getVideoUrl(lesson: any): string | null {
     if (lesson?.contents?.length) {
-      return lesson.contents.find((c: any) => c.contentType === 'Video')?.videoUrl ?? null;
+      const v = lesson.contents.find((c: any) => c.contentType === 'Video')?.videoUrl;
+      if (v) return v;
     }
-    return lesson?.content?.videoUrl ?? null;
+    return lesson?.videoUrl ?? lesson?.content?.videoUrl ?? null;
   }
 
   // ─── Enroll / Buy ────────────────────────────────────────────
@@ -217,6 +233,25 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
       const extras = this.appliedCouponCode ? { coupon: this.appliedCouponCode } : {};
       this.router.navigate(['/payment', this.courseId], { queryParams: extras });
     }
+  }
+
+  addToCart(): void {
+    if (!this.course) return;
+    if (!this.authService.getToken()) {
+      this.router.navigate(['/auth/login'], { queryParams: { returnUrl: `/courses/${this.courseId}` } });
+      return;
+    }
+    this.cartService.addToCart({
+      courseId: this.course.id,
+      title: this.course.title,
+      thumbnailUrl: this.course.thumbnailUrl,
+      price: this.course.price,
+      instructorName: this.course.instructorName
+    });
+  }
+
+  isInCart(): boolean {
+    return this.course ? this.cartService.isInCart(this.course.id) : false;
   }
 
   private enrollFree(): void {
@@ -272,6 +307,28 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
   get rating() { return this.reviewForm.get('rating'); }
   get title()  { return this.reviewForm.get('title');  }
   get content(){ return this.reviewForm.get('content');}
+
+  // ─── Review reactions ────────────────────────────────────────
+  readonly reactionEmojis = ['👍', '❤️', '😘', '😂', '🎉'];
+
+  reactionCount(review: any, emoji: string): number {
+    return review.reactionCounts?.[emoji] || 0;
+  }
+
+  toggleReaction(review: any, emoji: string): void {
+    if (!this.authService.getToken()) {
+      this.router.navigate(['/auth/login']);
+      return;
+    }
+    this.courseService.reactToReview(review.id, emoji)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          review.reactionCounts = res.reactionCounts;
+          review.myReaction = res.myReaction;
+        }
+      });
+  }
 
   ngOnDestroy(): void {
     this.destroy$.next();

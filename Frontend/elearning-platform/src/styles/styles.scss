@@ -19,8 +19,11 @@ html.dark {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: var(--app-bg);
-  color: var(--app-text);
+  /* !important: bootstrap.min.css loads after this file (see angular.json "styles"
+     order) and its reboot sets body { background-color: #fff } at equal specificity,
+     which would otherwise win and always show a light body regardless of theme. */
+  background-color: var(--app-bg) !important;
+  color: var(--app-text) !important;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -43,13 +46,24 @@ body {
 html.dark {
 
   /* ── Surfaces ─────────────────────────────────────────────────────────── */
-  .bg-white   { background-color: #1e293b !important; } /* card / panel  */
-  .bg-gray-50 { background-color: #1a2436 !important; } /* subtle / table head */
-  .bg-gray-100{ background-color: #334155 !important; }
-  .bg-gray-200{ background-color: #475569 !important; }
+  .bg-white    { background-color: #1e293b !important; } /* card / panel  */
+  /* bg-black is intentionally NOT remapped — every use is a modal scrim
+     (bg-black/40, bg-black bg-opacity-50) or an already-dark video surface,
+     which should stay black in both themes. */
+  .bg-gray-50,
+  .bg-slate-50 { background-color: #1a2436 !important; } /* subtle / table head / page wrapper */
+  .bg-gray-100 { background-color: #334155 !important; }
+  .bg-gray-200 { background-color: #475569 !important; }
+  .bg-gray-300 { background-color: #64748b !important; }
+  .bg-gray-400,
+  .disabled\:bg-gray-400:disabled { background-color: #52606d !important; } /* disabled buttons, meters */
+
+  .hover\:bg-gray-200:hover { background-color: #52606d !important; }
+  .hover\:bg-gray-300:hover { background-color: #64748b !important; }
+  .hover\:bg-gray-400:hover { background-color: #7c8ba1 !important; }
 
   /* Elements that are already dark in light mode stay dark — leave alone:
-     bg-gray-800, bg-gray-900, bg-slate-900, gradients, brand colors. */
+     bg-gray-700+, bg-gray-800, bg-gray-900, bg-slate-900, gradients, brand colors. */
 
   /* ── Text ─────────────────────────────────────────────────────────────── */
   .text-black,

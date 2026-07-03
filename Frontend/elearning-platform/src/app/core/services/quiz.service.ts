@@ -26,6 +26,12 @@ export class QuizService {
     });
   }
 
+  getLessonQuiz(lessonId: number): Observable<Quiz | null> {
+    return this.http.get<Quiz | null>(`${this.API_URL}`, {
+      params: { lessonId: lessonId.toString() }
+    });
+  }
+
   createQuiz(request: CreateQuizRequest): Observable<Quiz> {
     return this.http.post<Quiz>(this.API_URL, request);
   }
@@ -52,6 +58,10 @@ export class QuizService {
 
   addAnswer(quizId: number, questionId: number, request: CreateAnswerRequest): Observable<Answer> {
     return this.http.post<Answer>(`${this.API_URL}/${quizId}/questions/${questionId}/answers`, request);
+  }
+
+  updateAnswer(quizId: number, questionId: number, answerId: number, request: CreateAnswerRequest): Observable<Answer> {
+    return this.http.put<Answer>(`${this.API_URL}/${quizId}/questions/${questionId}/answers/${answerId}`, request);
   }
 
   deleteAnswer(quizId: number, questionId: number, answerId: number): Observable<void> {

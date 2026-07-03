@@ -1,0 +1,85 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-5xl mx-auto px-4 py-10">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6">Your Cart</h1>
+
+    <!-- Empty state -->
+    <div *ngIf="items.length === 0" class="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
+      <p class="text-gray-600 font-medium mb-1">Your cart is empty</p>
+      <p class="text-gray-400 text-sm mb-4">Browse courses and add them to your cart to get started.</p>
+      <a routerLink="/courses" class="inline-block px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition">
+        Browse Courses
+      </a>
+    </div>
+
+    <div *ngIf="items.length > 0" class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      <!-- Items -->
+      <div class="lg:col-span-3 space-y-4">
+        <div *ngFor="let item of items" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex gap-4 items-center">
+          <div class="w-24 h-16 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex-shrink-0 flex items-center justify-center overflow-hidden">
+            <img *ngIf="item.thumbnailUrl" [src]="item.thumbnailUrl" class="w-full h-full object-cover" alt="">
+            <span *ngIf="!item.thumbnailUrl" class="text-white text-xl">📚</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="font-semibold text-gray-900 truncate">{{ item.title }}</h3>
+            <p class="text-xs text-gray-500">by {{ item.instructorName || 'Instructor' }}</p>
+            <p *ngIf="item.couponCode" class="text-xs text-green-600 mt-1">Coupon "{{ item.couponCode }}" applied</p>
+          </div>
+          <div class="text-right">
+            <p class="font-bold text-indigo-600">${{ itemPrice(item) | number:'1.2-2' }}</p>
+            <p *ngIf="item.discountedPrice !== undefined" class="text-xs text-gray-400 line-through">${{ item.price | number:'1.2-2' }}</p>
+          </div>
+          <button (click)="removeItem(item.courseId)" title="Remove"
+            class="text-gray-400 hover:text-red-500 transition p-1">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-6">
+          <h3 class="font-bold text-gray-900 mb-4">Order Summary</h3>
+
+          <!-- Coupon -->
+          <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">Coupon Code</label>
+            <div class="flex gap-2">
+              <input type="text" [(ngModel)]="couponCode" placeholder="Enter code"
+                (keyup.enter)="applyCoupon()"
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"/>
+              <button (click)="applyCoupon()" [disabled]="!couponCode.trim() || applyingCourseId !== null"
+                class="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-sm font-medium rounded-lg disabled:opacity-40 transition">
+                Apply
+              </button>
+            </div>
+          </div>
+
+          <hr class="border-gray-100 mb-4"/>
+
+          <div class="space-y-2 text-sm mb-4">
+            <div class="flex justify-between text-gray-500">
+              <span>Subtotal</span>
+              <span>${{ subtotal | number:'1.2-2' }}</span>
+            </div>
+            <div class="flex justify-between text-gray-500">
+              <span>Discount</span>
+              <span class="text-green-600">-${{ discount | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div class="flex justify-between font-bold text-base pt-3 border-t border-gray-100 mb-5">
+            <span class="text-gray-900">Total</span>
+            <span class="text-indigo-600">${{ total | number:'1.2-2' }}</span>
+          </div>
+
+          <button (click)="proceedToCheckout()"
+            class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition">
+            Proceed to Checkout
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

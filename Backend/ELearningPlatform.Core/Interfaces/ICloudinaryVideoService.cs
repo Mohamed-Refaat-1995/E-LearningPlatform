@@ -7,6 +7,7 @@ public interface ICloudinaryVideoService
     string GetVideoUrl(string publicId);
     string GenerateSignedUrl(string publicId, int expirationMinutes = 60);
     Task<bool> DeleteVideoAsync(string publicId);
+    Task<bool> DeleteFileAsync(string publicId);
 }
 
-public record CloudinaryUploadResult(string PublicId, string SecureUrl);
+public record CloudinaryUploadResult(string PublicId, string SecureUrl, double? DurationSeconds = null);

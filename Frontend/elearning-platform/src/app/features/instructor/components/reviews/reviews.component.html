@@ -1,0 +1,99 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-6">
+      <a routerLink="/instructor" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">← Dashboard</a>
+      <h1 class="text-3xl font-bold text-gray-900 mt-2">Reviews</h1>
+      <p class="text-gray-500 mt-1">See what students are saying and reply</p>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="flex flex-wrap items-center gap-3 mb-4 bg-white border border-gray-200 rounded-xl p-3">
+      <input type="text" [(ngModel)]="search" (ngModelChange)="onSearchChange()"
+        placeholder="Search course, student or content..."
+        class="flex-1 min-w-[180px] px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+      <select [(ngModel)]="ratingFilter" (ngModelChange)="onFilterChange()"
+        class="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <option [ngValue]="''">All ratings</option>
+        <option [ngValue]="5">5 ★</option>
+        <option [ngValue]="4">4 ★</option>
+        <option [ngValue]="3">3 ★</option>
+        <option [ngValue]="2">2 ★</option>
+        <option [ngValue]="1">1 ★</option>
+      </select>
+      <div class="flex items-center gap-1 text-xs">
+        <button (click)="sortByColumn('date')" class="px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 font-semibold text-gray-600">Date {{ sortIcon('date') }}</button>
+        <button (click)="sortByColumn('rating')" class="px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 font-semibold text-gray-600">Rating {{ sortIcon('rating') }}</button>
+      </div>
+    </div>
+
+    @if (loading) {
+      <div class="text-center py-16 text-gray-400">Loading reviews...</div>
+    }
+
+    @if (!loading && rows.length === 0) {
+      <div class="text-center py-16 text-gray-400 bg-white rounded-xl border border-dashed border-gray-300">
+        No reviews found.
+      </div>
+    }
+
+    <div class="space-y-4">
+      @for (review of rows; track review.id) {
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div class="flex items-start justify-between gap-4 mb-2">
+            <div>
+              <p class="font-semibold text-gray-900">{{ review.studentName }}</p>
+              <p class="text-xs text-indigo-600">{{ review.courseTitle }}</p>
+              <div class="flex items-center gap-1 mt-1">
+                <span *ngFor="let s of [1,2,3,4,5]" class="text-sm"
+                      [class.text-yellow-400]="s <= review.rating"
+                      [class.text-gray-200]="s > review.rating">★</span>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 flex-shrink-0">{{ review.createdAt | date:'mediumDate' }}</p>
+          </div>
+          <p class="font-semibold text-gray-800 text-sm mb-1">{{ review.title }}</p>
+          <p class="text-gray-600 text-sm leading-relaxed">{{ review.content }}</p>
+
+          <!-- Reaction bar -->
+          <div class="flex items-center gap-1.5 mt-3">
+            <button *ngFor="let emoji of reactionEmojis" type="button"
+              (click)="toggleReaction(review, emoji)"
+              class="flex items-center gap-1 px-2 py-1 rounded-full text-xs border transition-colors"
+              [class.border-indigo-400]="review.myReaction === emoji"
+              [class.bg-indigo-50]="review.myReaction === emoji"
+              [class.border-gray-200]="review.myReaction !== emoji">
+              <span>{{ emoji }}</span>
+              <span *ngIf="reactionCount(review, emoji) > 0" class="text-gray-500">{{ reactionCount(review, emoji) }}</span>
+            </button>
+          </div>
+
+          <!-- Reply box -->
+          <div class="mt-4 pt-4 border-t border-gray-100">
+            <label class="text-xs font-semibold text-gray-500 mb-1 block">Your reply</label>
+            <div class="flex items-start gap-2">
+              <textarea [(ngModel)]="replyDraft[review.id]" rows="2"
+                placeholder="Write a reply to this review..."
+                class="flex-1 text-sm px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"></textarea>
+              <button (click)="saveReply(review)" [disabled]="savingReplyId === review.id"
+                class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 transition">
+                {{ savingReplyId === review.id ? '...' : (review.instructorReply ? 'Update' : 'Reply') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (totalPages > 1) {
+      <div class="flex items-center justify-between mt-5 text-sm">
+        <span class="text-gray-500">Page {{ page }} of {{ totalPages }} · {{ totalCount }} total</span>
+        <div class="flex items-center gap-2">
+          <button (click)="goToPage(page - 1)" [disabled]="page <= 1"
+            class="px-3 py-1.5 rounded-lg border border-gray-200 font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50">Prev</button>
+          <button (click)="goToPage(page + 1)" [disabled]="page >= totalPages"
+            class="px-3 py-1.5 rounded-lg border border-gray-200 font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50">Next</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

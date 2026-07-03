@@ -38,7 +38,7 @@ public class CloudinaryVideoService : ICloudinaryVideoService
         if (result.Error != null)
             throw new Exception($"Cloudinary upload failed: {result.Error.Message}");
 
-        return new CloudinaryUploadResult(result.PublicId, result.SecureUrl.ToString());
+        return new CloudinaryUploadResult(result.PublicId, result.SecureUrl.ToString(), result.Duration);
     }
 
     public async Task<CloudinaryUploadResult> UploadFileAsync(Stream fileStream, string fileName)
@@ -84,6 +84,17 @@ public class CloudinaryVideoService : ICloudinaryVideoService
         var deleteParams = new DeletionParams(publicId)
         {
             ResourceType = ResourceType.Video
+        };
+
+        var result = await _cloudinary.DestroyAsync(deleteParams);
+        return result.Result == "ok";
+    }
+
+    public async Task<bool> DeleteFileAsync(string publicId)
+    {
+        var deleteParams = new DeletionParams(publicId)
+        {
+            ResourceType = ResourceType.Raw
         };
 
         var result = await _cloudinary.DestroyAsync(deleteParams);

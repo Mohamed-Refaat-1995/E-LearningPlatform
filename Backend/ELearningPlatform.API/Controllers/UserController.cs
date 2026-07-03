@@ -136,7 +136,7 @@ public class UsersController : ControllerBase
         }
 
         var courses = await _userService.GetRecommendedCoursesAsync(userId);
-        return Ok(new GenericResponseDTO<object>(true, courses.Take(take)));
+        return Ok(new GenericResponseDTO<object>(true, courses?.Take(take)));
     }
 
     [HttpGet("certificates")]

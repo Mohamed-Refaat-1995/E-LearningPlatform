@@ -15,5 +15,6 @@ public class Lesson : BaseEntity
     public string? VideoPublicId { get; set; }
     public string? TextContent { get; set; }
     public string? ResourceUrl { get; set; }
+    public string? ResourcePublicId { get; set; }
     public ICollection<LessonProgress> LessonProgresses { get; set; } = new List<LessonProgress>();
 }

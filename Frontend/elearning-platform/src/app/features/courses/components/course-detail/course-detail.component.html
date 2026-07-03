@@ -115,8 +115,17 @@
                 </a>
               </ng-container>
 
+              <!-- Not enrolled, but every lesson is a free preview -->
+              <ng-container *ngIf="!isEnrolled && allLessonsFree">
+                <button (click)="goToFreeCourse()" [disabled]="enrolling"
+                        class="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mb-3">
+                  {{ enrolling ? 'Loading…' : 'Go to Course →' }}
+                </button>
+                <p class="text-center text-xs text-gray-400">This entire course is free to watch</p>
+              </ng-container>
+
               <!-- Not enrolled -->
-              <ng-container *ngIf="!isEnrolled">
+              <ng-container *ngIf="!isEnrolled && !allLessonsFree">
                 <!-- Coupon section (only for paid courses) -->
                 <div *ngIf="course.price > 0" class="mb-4">
                   <div *ngIf="!appliedCouponCode" class="flex gap-2">
@@ -138,6 +147,10 @@
                 <button (click)="buyCourse()" [disabled]="enrolling"
                         class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition mb-3 text-base">
                   {{ enrolling ? 'Processing…' : (effectivePrice === 0 ? 'Enroll Free' : 'Buy Now') }}
+                </button>
+                <button *ngIf="course.price > 0" (click)="addToCart()" [disabled]="isInCart()"
+                        class="w-full bg-white border border-indigo-600 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed font-semibold py-3 rounded-xl transition mb-3 text-base">
+                  {{ isInCart() ? 'In Cart' : 'Add to Cart' }}
                 </button>
                 <p *ngIf="course.price > 0" class="text-center text-xs text-gray-400">
                   30-day money-back guarantee
@@ -405,6 +418,25 @@
                 </div>
                 <p class="font-semibold text-gray-800 text-sm mb-1">{{ review.title }}</p>
                 <p class="text-gray-600 text-sm leading-relaxed">{{ review.content }}</p>
+
+                <!-- Reaction bar -->
+                <div class="flex items-center gap-1.5 mt-3">
+                  <button *ngFor="let emoji of reactionEmojis" type="button"
+                    (click)="toggleReaction(review, emoji)"
+                    class="flex items-center gap-1 px-2 py-1 rounded-full text-xs border transition-colors"
+                    [class.border-indigo-400]="review.myReaction === emoji"
+                    [class.bg-indigo-50]="review.myReaction === emoji"
+                    [class.border-gray-200]="review.myReaction !== emoji">
+                    <span>{{ emoji }}</span>
+                    <span *ngIf="reactionCount(review, emoji) > 0" class="text-gray-500">{{ reactionCount(review, emoji) }}</span>
+                  </button>
+                </div>
+
+                <!-- Instructor reply -->
+                <div *ngIf="review.instructorReply" class="mt-3 ml-4 pl-4 border-l-2 border-indigo-200 bg-indigo-50/50 rounded-r-lg py-2 pr-3">
+                  <p class="text-xs font-semibold text-indigo-700 mb-0.5">Instructor reply</p>
+                  <p class="text-sm text-gray-700">{{ review.instructorReply }}</p>
+                </div>
               </div>
             </div>
           </section>
@@ -426,10 +458,21 @@
               </a>
             </ng-container>
 
-            <ng-container *ngIf="!isEnrolled">
+            <ng-container *ngIf="!isEnrolled && allLessonsFree">
+              <button (click)="goToFreeCourse()" [disabled]="enrolling"
+                      class="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
+                {{ enrolling ? 'Loading…' : 'Go to Course →' }}
+              </button>
+            </ng-container>
+
+            <ng-container *ngIf="!isEnrolled && !allLessonsFree">
               <button (click)="buyCourse()" [disabled]="enrolling"
                       class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition">
                 {{ enrolling ? 'Processing…' : (course.price === 0 ? 'Enroll Free' : 'Buy Now') }}
+              </button>
+              <button *ngIf="course.price > 0" (click)="addToCart()" [disabled]="isInCart()"
+                      class="w-full bg-white border border-indigo-600 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed font-semibold py-3 rounded-xl transition mt-2">
+                {{ isInCart() ? 'In Cart' : 'Add to Cart' }}
               </button>
               <p *ngIf="course.price > 0" class="text-center text-xs text-gray-400 mt-2">
                 30-day money-back guarantee
@@ -517,12 +560,24 @@
     <!-- Modal footer -->
     <div class="px-5 py-4 flex items-center justify-between">
       <p class="text-xs text-gray-400">
-        Want all lessons?
-        <span *ngIf="!isEnrolled" class="text-indigo-400">Enroll to unlock the full course.</span>
+        <ng-container *ngIf="!isEnrolled && allLessonsFree">
+          <span class="text-green-400">This entire course is free to watch!</span>
+        </ng-container>
+        <ng-container *ngIf="!isEnrolled && !allLessonsFree">
+          Want all lessons?
+          <span class="text-indigo-400">Enroll to unlock the full course.</span>
+        </ng-container>
         <span *ngIf="isEnrolled" class="text-green-400">You're already enrolled!</span>
       </p>
 
-      <ng-container *ngIf="!isEnrolled">
+      <ng-container *ngIf="!isEnrolled && allLessonsFree">
+        <button (click)="closePreview(); goToFreeCourse()"
+                class="px-5 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-xl transition">
+          Go to Course
+        </button>
+      </ng-container>
+
+      <ng-container *ngIf="!isEnrolled && !allLessonsFree">
         <button (click)="closePreview(); buyCourse()"
                 class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition">
           {{ course?.price === 0 ? 'Enroll Free' : 'Buy Now — $' + (course?.price | number:'1.2-2') }}

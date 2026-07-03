@@ -15,6 +15,8 @@ export class CourseRowComponent {
   @Input() subtitle?: string;
   @Input() courses: Course[] = [];
   @Input() loading = false;
+  @Input() compact = false;
+  @Input() redirectGuestToAuth = false;
 
   trackId(_: number, c: Course) { return c.id; }
 }

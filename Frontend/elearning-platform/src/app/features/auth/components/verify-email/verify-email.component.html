@@ -28,7 +28,7 @@
     <!-- OTP inputs -->
     <div class="flex justify-center gap-3 mb-6" (paste)="onPaste($event)">
       <input
-        *ngFor="let digit of otp; let i = index"
+        *ngFor="let digit of otp; let i = index; trackBy: trackByIndex"
         [id]="'otp-' + i"
         type="text"
         inputmode="numeric"

@@ -22,7 +22,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   studentName = '';
   loading = false;
   error: string | null = null;
-  showNotifications = false;
 
   // Refund
   refundingEnrollmentId: number | null = null;
@@ -178,10 +177,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   getProgress(enrollment: any): number {
     return Math.round(enrollment.completionPercentage || 0);
-  }
-
-  toggleNotifications(): void {
-    this.showNotifications = !this.showNotifications;
   }
 
   logout(): void {

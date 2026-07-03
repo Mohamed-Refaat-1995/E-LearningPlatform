@@ -1,0 +1,64 @@
+@if (open && course) {
+  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4" (click)="close()">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" (click)="$event.stopPropagation()">
+      <div class="relative">
+        <button (click)="close()"
+          class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 dark:bg-gray-800/80 text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 z-10">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+
+        <div class="aspect-video w-full bg-gray-200 dark:bg-gray-800">
+          @if (course.thumbnailUrl) {
+            <img [src]="course.thumbnailUrl" [alt]="course.title" class="w-full h-full object-cover"/>
+          } @else {
+            <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-lg font-semibold p-4 text-center">
+              {{ course.title }}
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="p-5">
+        <h3 class="font-bold text-gray-900 dark:text-white leading-tight mb-1">{{ course.title }}</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">{{ course.instructorName || 'Instructor' }}</p>
+
+        <div class="flex items-center gap-1 mb-3">
+          <span class="text-sm font-bold text-yellow-700 dark:text-yellow-500">{{ course.averageRating | number:'1.1-1' }}</span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">({{ course.totalReviews }} reviews)</span>
+        </div>
+
+        <p class="font-bold text-lg text-gray-900 dark:text-white mb-4">
+          {{ course.price === 0 ? 'Free' : ('$' + (course.price | number:'1.2-2')) }}
+        </p>
+
+        @if (checkingEnrollment) {
+          <button disabled class="w-full py-2.5 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-500 text-sm font-semibold">
+            Checking…
+          </button>
+        } @else if (isEnrolled) {
+          <button (click)="goToCourse()"
+            class="w-full py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-semibold shadow-lg transition-colors">
+            Go to Course →
+          </button>
+        } @else if (course.price === 0) {
+          <button (click)="enroll()" [disabled]="enrolling"
+            class="w-full py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-semibold shadow-lg transition-colors disabled:opacity-50">
+            {{ enrolling ? 'Enrolling…' : 'Enroll' }}
+          </button>
+        } @else {
+          <button (click)="addToCart()" [disabled]="isInCart()"
+            class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg transition-colors disabled:opacity-50">
+            {{ isInCart() ? 'In Cart' : 'Add to Cart' }}
+          </button>
+        }
+
+        <a [routerLink]="['/courses', course.id]" (click)="close()"
+          class="block text-center mt-3 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+          View full course details
+        </a>
+      </div>
+    </div>
+  </div>
+}

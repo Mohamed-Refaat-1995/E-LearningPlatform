@@ -29,6 +29,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<OrderItem> OrderItems { get; }
     public IRepository<Coupon> Coupons { get; }
     public IRepository<UserSession> UserSessions { get; }
+    public IRepository<Notification> Notifications { get; }
     // ActivityLog, AdminPlatformSettings, AdminProfitShare and AdminNotification removed
 
     public UnitOfWork(AppDbContext dbContext)
@@ -55,6 +56,7 @@ public class UnitOfWork : IUnitOfWork
         OrderItems = new Repository<OrderItem>(_dbContext);
         Coupons = new Repository<Coupon>(_dbContext);
         UserSessions = new Repository<UserSession>(_dbContext);
+        Notifications = new Repository<Notification>(_dbContext);
     }
 
     public async Task SaveChangesAsync()

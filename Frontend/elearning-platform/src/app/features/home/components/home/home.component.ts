@@ -16,7 +16,6 @@ import { CourseRowComponent } from '@shared/components/course-row/course-row.com
 })
 export class HomeComponent implements OnInit {
   user: User | null = null;
-  categories: string[] = [];
   recommended: Course[] = [];
   popular: Course[] = [];
   topRated: Course[] = [];
@@ -31,11 +30,6 @@ export class HomeComponent implements OnInit {
 
   ngOnInit(): void {
     this.auth.getCurrentUser$().subscribe(u => (this.user = u));
-
-    this.courseService.getCategories().subscribe({
-      next: c => (this.categories = c),
-      error: () => (this.categories = [])
-    });
 
     this.courseService.getRecommended(10).subscribe({
       next: c => { this.recommended = c; this.loadingRecommended = false; },

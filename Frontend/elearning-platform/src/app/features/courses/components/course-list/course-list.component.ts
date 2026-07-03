@@ -1,12 +1,15 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil, debounceTime } from 'rxjs/operators';
 import { CourseService } from '@core/services/course.service';
-import { Course } from '@shared/models/course.model';
+import { EnrollmentService } from '@core/services/enrollment.service';
+import { CartService } from '@core/services/cart.service';
+import { Course, Category } from '@shared/models/course.model';
 import { AuthService } from '@core/services/auth.service';
+import { UserRole } from '@shared/models/user.model';
 
 @Component({
   selector: 'app-course-list',
@@ -26,8 +29,11 @@ export class CourseListComponent implements OnInit, OnDestroy {
   pageSize = 12;
   totalCourses = 0;
 
-  categories: string[] = ['Web Development', 'Mobile Development', 'Data Science', 'AI & Machine Learning', 'Cloud Computing', 'DevOps'];
+  categories: Category[] = [];
   levels: string[] = ['Beginner', 'Intermediate', 'Advanced'];
+  activeCategory: string | null = null;
+
+  enrolledCourseIds = new Set<number>();
 
   private destroy$ = new Subject<void>();
 
@@ -35,7 +41,10 @@ export class CourseListComponent implements OnInit, OnDestroy {
     private courseService: CourseService,
     private formBuilder: FormBuilder,
     private router: Router,
-    private authService: AuthService
+    private route: ActivatedRoute,
+    private authService: AuthService,
+    private enrollmentService: EnrollmentService,
+    private cartService: CartService
   ) {}
 
   ngOnInit(): void {
@@ -47,8 +56,62 @@ export class CourseListComponent implements OnInit, OnDestroy {
       maxPrice: ['']
     });
 
+    this.courseService.getCategories()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: cats => this.categories = cats, error: () => this.categories = [] });
+
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      const category = params['category'] || '';
+      this.activeCategory = category || null;
+      this.filterForm.patchValue({ category }, { emitEvent: false });
+      if (category) this.applyFilters();
+    });
+
     this.loadCourses();
     this.setupFilterListeners();
+    this.loadEnrollments();
+  }
+
+  loadEnrollments(): void {
+    if (this.authService.getCurrentUserSnapshot()?.role !== UserRole.Student) return;
+    this.enrollmentService.getEnrollments()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: list => this.enrolledCourseIds = new Set(list.map((e: any) => Number(e.courseId))),
+        error: () => this.enrolledCourseIds = new Set()
+      });
+  }
+
+  isEnrolled(courseId: number): boolean {
+    return this.enrolledCourseIds.has(courseId);
+  }
+
+  isStudent(): boolean {
+    return this.authService.getCurrentUserSnapshot()?.role === UserRole.Student;
+  }
+
+  goToCourse(courseId: number, event: Event): void {
+    event.stopPropagation();
+    this.router.navigate(['/dashboard/my-courses', courseId]);
+  }
+
+  addToCart(course: Course, event: Event): void {
+    event.stopPropagation();
+    if (!this.authService.getToken()) {
+      this.router.navigate(['/auth/login'], { queryParams: { returnUrl: '/courses' } });
+      return;
+    }
+    this.cartService.addToCart({
+      courseId: course.id,
+      title: course.title,
+      thumbnailUrl: course.thumbnailUrl,
+      price: course.price,
+      instructorName: course.instructorName
+    });
+  }
+
+  isInCart(courseId: number): boolean {
+    return this.cartService.isInCart(courseId);
   }
 
   loadCourses(): void {
@@ -145,15 +208,6 @@ export class CourseListComponent implements OnInit, OnDestroy {
   }
 
   viewCourse(courseId: number): void {
-    this.router.navigate(['/courses', courseId]);
-  }
-
-  enrollCourse(courseId: number, event: Event): void {
-    event.stopPropagation();
-    if (!this.authService.getToken()) {
-      this.router.navigate(['/auth/login'], { queryParams: { returnUrl: `/courses/${courseId}` } });
-      return;
-    }
     this.router.navigate(['/courses', courseId]);
   }
 

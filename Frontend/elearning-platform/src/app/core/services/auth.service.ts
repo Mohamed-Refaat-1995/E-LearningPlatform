@@ -58,23 +58,32 @@ export class AuthService {
     return this.http.post<GenericResponse<any>>(`${this.API_URL}/resend-otp`, { email });
   }
 
-  login(request: LoginRequest): Observable<TokenResponse> {
+  /**
+   * @param rememberMe When true, the session survives browser restarts
+   * (localStorage). When false, it is cleared as soon as the browser closes
+   * (sessionStorage).
+   */
+  login(request: LoginRequest, rememberMe: boolean = true): Observable<TokenResponse> {
     return this.http.post<GenericResponse<TokenResponse>>(`${this.API_URL}/login`, request).pipe(
       map(res => res.data as TokenResponse),
       tap(response => {
-        this.setToken(response.token);
-        this.setRefreshToken(response.refreshToken);
+        this.setToken(response.token, rememberMe);
+        this.setRefreshToken(response.refreshToken, rememberMe);
         this.loadStoredUser();
       })
     );
   }
 
-  googleLogin(idToken: string): Observable<TokenResponse> {
-    return this.http.post<GenericResponse<TokenResponse>>(`${this.API_URL}/google`, { idToken }).pipe(
+  /**
+   * @param role Requested role (Student=1, Instructor=2) applied only when
+   * this Google email creates a brand-new account; ignored for existing users.
+   */
+  googleLogin(idToken: string, rememberMe: boolean = true, role?: number): Observable<TokenResponse> {
+    return this.http.post<GenericResponse<TokenResponse>>(`${this.API_URL}/google`, { idToken, role }).pipe(
       map(res => res.data as TokenResponse),
       tap(response => {
-        this.setToken(response.token);
-        this.setRefreshToken(response.refreshToken);
+        this.setToken(response.token, rememberMe);
+        this.setRefreshToken(response.refreshToken, rememberMe);
         this.loadStoredUser();
       })
     );
@@ -88,17 +97,21 @@ export class AuthService {
     }
     localStorage.removeItem('auth_token');
     localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('refresh_token');
     this.currentUser$.next(null);
     this._isAuthenticated$.next(false);
   }
 
   refreshToken(): Observable<{ token: string; refreshToken: string }> {
     const refreshToken = this.getRefreshToken();
+    // Preserve whichever storage the session was originally remembered in.
+    const rememberMe = localStorage.getItem('auth_token') !== null;
     return this.http.post<GenericResponse<{ token: string; refreshToken: string }>>(`${this.API_URL}/refresh`, { refreshToken }).pipe(
       map(res => res.data as { token: string; refreshToken: string }),
       tap(response => {
-        this.setToken(response.token);
-        this.setRefreshToken(response.refreshToken);
+        this.setToken(response.token, rememberMe);
+        this.setRefreshToken(response.refreshToken, rememberMe);
       }),
       catchError(() => {
         this.logout();
@@ -128,20 +141,31 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem('auth_token');
+    return localStorage.getItem('auth_token') ?? sessionStorage.getItem('auth_token');
   }
 
-  setToken(token: string): void {
-    localStorage.setItem('auth_token', token);
+  setToken(token: string, rememberMe: boolean = true): void {
+    this.persist('auth_token', token, rememberMe);
     this._isAuthenticated$.next(true);
   }
 
   getRefreshToken(): string | null {
-    return localStorage.getItem('refresh_token');
+    return localStorage.getItem('refresh_token') ?? sessionStorage.getItem('refresh_token');
   }
 
-  setRefreshToken(token: string): void {
-    localStorage.setItem('refresh_token', token);
+  setRefreshToken(token: string, rememberMe: boolean = true): void {
+    this.persist('refresh_token', token, rememberMe);
+  }
+
+  /** Writes to one storage and clears the other so a stale copy never lingers. */
+  private persist(key: string, value: string, rememberMe: boolean): void {
+    if (rememberMe) {
+      localStorage.setItem(key, value);
+      sessionStorage.removeItem(key);
+    } else {
+      sessionStorage.setItem(key, value);
+      localStorage.removeItem(key);
+    }
   }
 
   isTokenValid(): boolean {

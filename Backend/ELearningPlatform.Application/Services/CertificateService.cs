@@ -1,8 +1,13 @@
 using ELearningPlatform.Core;
 using ELearningPlatform.Core.Interfaces;
+using iText.Kernel.Colors;
+using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Canvas;
 using iText.Layout;
+using iText.Layout.Borders;
 using iText.Layout.Element;
+using iText.Layout.Properties;
 
 namespace ELearningPlatform.Application.Services;
 
@@ -66,49 +71,154 @@ public class CertificateService : ICertificateService
         if (student == null || course == null)
             throw new Exception("Student or course not found");
 
+        var instructor = await _unitOfWork.Users.GetByIdAsync(course.InstructorId);
+
+        // Brand colors — indigo to cyan, matching the platform's header gradient
+        var indigo = new DeviceRgb(0x63, 0x66, 0xF1);
+        var cyan = new DeviceRgb(0x22, 0xD3, 0xEE);
+        var slate = new DeviceRgb(0x1E, 0x29, 0x3B);
+        var muted = new DeviceRgb(0x94, 0xA3, 0xB8);
+        var gold = new DeviceRgb(0xD4, 0xAF, 0x37);
+        var paleIndigo = new DeviceRgb(0xEE, 0xF2, 0xFF);
+        var white = new DeviceRgb(0xFF, 0xFF, 0xFF);
+
         var memoryStream = new MemoryStream();
 
         PdfWriter writer = new PdfWriter(memoryStream);
         PdfDocument pdf = new PdfDocument(writer);
-        Document document = new Document(pdf);
+        var pageSize = PageSize.A4.Rotate();
+        var pageWidth = pageSize.GetWidth();
+        var pageHeight = pageSize.GetHeight();
 
-        document.SetMargins(36, 36, 36, 36);
+        // Decorative frame: pale-indigo background fill, thin gold rule, thin indigo rule.
+        var page = pdf.AddNewPage(pageSize);
+        new PdfCanvas(page).SaveState()
+            .SetFillColor(white)
+            .Rectangle(new Rectangle(0, 0, pageWidth, pageHeight))
+            .Fill()
+            .SetStrokeColor(indigo)
+            .SetLineWidth(6)
+            .Rectangle(new Rectangle(18, 18, pageWidth - 36, pageHeight - 36))
+            .Stroke()
+            .SetStrokeColor(gold)
+            .SetLineWidth(1.25f)
+            .Rectangle(new Rectangle(30, 30, pageWidth - 60, pageHeight - 60))
+            .Stroke()
+            .RestoreState();
 
-        var title = new Paragraph("Certificate of Completion")
-            .SetFontSize(36)
-            .SetBold()
-            .SetTextAlignment(iText.Layout.Properties.TextAlignment.CENTER);
-        document.Add(title);
+        Document document = new Document(pdf, pageSize);
+        document.SetMargins(56, 70, 40, 70);
 
-        document.Add(new Paragraph("\n"));
+        // Platform wordmark, top-center
+        document.Add(new Paragraph("U . L E A R N")
+            .SetFontSize(15).SetBold()
+            .SetFontColor(indigo)
+            .SetCharacterSpacing(3)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginBottom(2));
+        document.Add(new Paragraph("LEARN WITHOUT LIMITS")
+            .SetFontSize(8)
+            .SetFontColor(cyan)
+            .SetCharacterSpacing(2)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginBottom(16));
 
-        var certText = new Paragraph(
-            $"This is to certify that {student.FirstName} {student.LastName} " +
-            $"has successfully completed the course:\n{course.Title}")
-            .SetFontSize(14)
-            .SetTextAlignment(iText.Layout.Properties.TextAlignment.CENTER);
-        document.Add(certText);
+        document.Add(new Paragraph("CERTIFICATE OF COMPLETION")
+            .SetFontSize(28).SetBold()
+            .SetFontColor(slate)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetCharacterSpacing(3)
+            .SetMarginBottom(10));
 
-        document.Add(new Paragraph("\n\n"));
+        // Gold accent divider — short centered rule
+        var divider = new Table(1).UseAllAvailableWidth().SetMarginBottom(20);
+        divider.AddCell(new Cell().SetBorder(Border.NO_BORDER)
+            .SetBorderTop(new SolidBorder(gold, 1.5f))
+            .SetWidth(UnitValue.CreatePointValue(140))
+            .SetHeight(1));
+        document.Add(divider.SetWidth(UnitValue.CreatePointValue(140)).SetHorizontalAlignment(iText.Layout.Properties.HorizontalAlignment.CENTER));
 
-        var dateText = new Paragraph($"Issued on {certificate.IssuedAt:MMMM dd, yyyy}")
+        document.Add(new Paragraph("This certificate is proudly presented to")
             .SetFontSize(12)
-            .SetTextAlignment(iText.Layout.Properties.TextAlignment.CENTER);
-        document.Add(dateText);
+            .SetItalic()
+            .SetFontColor(muted)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginBottom(10));
 
-        var certNumberText = new Paragraph($"Certificate No: {certificate.CertificateNumber}")
-            .SetFontSize(10)
-            .SetTextAlignment(iText.Layout.Properties.TextAlignment.CENTER);
-        document.Add(certNumberText);
+        document.Add(new Paragraph($"{student.FirstName} {student.LastName}")
+            .SetFontSize(34).SetBold()
+            .SetFontColor(indigo)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginBottom(14));
 
-        var verificationText = new Paragraph($"Verification Code: {certificate.VerificationCode}")
-            .SetFontSize(10)
-            .SetTextAlignment(iText.Layout.Properties.TextAlignment.CENTER);
-        document.Add(verificationText);
+        document.Add(new Paragraph("for successfully completing all lessons and assessments of the online course")
+            .SetFontSize(12)
+            .SetFontColor(muted)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginBottom(6));
+
+        document.Add(new Paragraph($"“{course.Title}”")
+            .SetFontSize(21).SetBold()
+            .SetFontColor(slate)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginBottom(36));
+
+        // Signature row: Instructor | circular seal | Date
+        var sigTable = new Table(UnitValue.CreatePercentArray(new float[] { 34, 32, 34 }))
+            .UseAllAvailableWidth()
+            .SetMarginBottom(4);
+
+        sigTable.AddCell(SignatureCell(
+            instructor != null ? $"{instructor.FirstName} {instructor.LastName}" : "—",
+            "Instructor", slate, muted));
+
+        var sealCell = new Cell().SetBorder(Border.NO_BORDER).SetTextAlignment(TextAlignment.CENTER);
+        var seal = new Div()
+            .SetWidth(64).SetHeight(64)
+            .SetBorderRadius(new iText.Layout.Properties.BorderRadius(32))
+            .SetBackgroundColor(gold)
+            .SetHorizontalAlignment(iText.Layout.Properties.HorizontalAlignment.CENTER);
+        var sealInner = new Div()
+            .SetWidth(52).SetHeight(52)
+            .SetBorderRadius(new iText.Layout.Properties.BorderRadius(26))
+            .SetBackgroundColor(indigo)
+            .SetHorizontalAlignment(iText.Layout.Properties.HorizontalAlignment.CENTER)
+            .SetMarginTop(6).SetMarginLeft(6);
+        sealInner.Add(new Paragraph("✓")
+            .SetFontSize(26).SetBold().SetFontColor(white)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginTop(6));
+        seal.Add(sealInner);
+        sealCell.Add(seal);
+        sealCell.Add(new Paragraph("VERIFIED").SetFontSize(7).SetFontColor(muted)
+            .SetCharacterSpacing(1.5f).SetTextAlignment(TextAlignment.CENTER).SetMarginTop(6));
+        sigTable.AddCell(sealCell);
+
+        sigTable.AddCell(SignatureCell(
+            $"{certificate.IssuedAt:MMMM dd, yyyy}", "Date Issued", slate, muted));
+
+        document.Add(sigTable);
+
+        document.Add(new Paragraph($"Certificate No. {certificate.CertificateNumber}   ·   Verification Code {certificate.VerificationCode}")
+            .SetFontSize(8)
+            .SetFontColor(muted)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginTop(6));
 
         document.Close();
 
-        memoryStream.Position = 0;
-        return memoryStream;
+        return new MemoryStream(memoryStream.ToArray());
+    }
+
+    private static Cell SignatureCell(string value, string label, DeviceRgb valueColor, DeviceRgb labelColor)
+    {
+        var cell = new Cell().SetBorder(Border.NO_BORDER).SetTextAlignment(TextAlignment.CENTER).SetPaddingTop(18);
+        cell.Add(new Paragraph(value).SetFontSize(14).SetBold().SetFontColor(valueColor)
+            .SetTextAlignment(TextAlignment.CENTER).SetMarginBottom(4));
+        cell.Add(new Paragraph("").SetBorderTop(new SolidBorder(labelColor, 0.75f)).SetWidth(UnitValue.CreatePointValue(150))
+            .SetHorizontalAlignment(iText.Layout.Properties.HorizontalAlignment.CENTER).SetMarginBottom(4));
+        cell.Add(new Paragraph(label).SetFontSize(9).SetFontColor(labelColor)
+            .SetCharacterSpacing(1).SetTextAlignment(TextAlignment.CENTER));
+        return cell;
     }
 }

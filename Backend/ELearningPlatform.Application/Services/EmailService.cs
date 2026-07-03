@@ -49,6 +49,24 @@ public class EmailService : IEmailService
         await SendEmailAsync(toEmail, subject, body);
     }
 
+    public async Task SendCertificateReadyEmailAsync(string toEmail, string studentName, string courseTitle, string certificateUrl)
+    {
+        var subject = "🎉 Congratulations — Your Certificate is Ready!";
+        var body = $@"
+        <div style='font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#f9fafb;border-radius:12px;'>
+          <h2 style='color:#4f46e5;margin-bottom:8px;'>Congratulations, {studentName}! 🎓</h2>
+          <p style='color:#374151;'>You've successfully completed <strong>{courseTitle}</strong> — every lesson watched and every quiz passed. Your certificate of completion is ready.</p>
+          <div style='text-align:center;margin:28px 0;'>
+            <a href='{certificateUrl}' style='background:#4f46e5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;'>
+              View &amp; Download Certificate
+            </a>
+          </div>
+          <p style='color:#6b7280;font-size:13px;'>Well done, and keep learning!</p>
+        </div>";
+
+        await SendEmailAsync(toEmail, subject, body);
+    }
+
     private async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
     {
         var settings = _configuration.GetSection("EmailSettings");

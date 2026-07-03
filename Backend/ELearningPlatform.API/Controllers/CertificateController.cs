@@ -11,11 +11,13 @@ public class CertificateController : ControllerBase
 {
     private readonly ICertificateService _certificateService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IEnrollmentService _enrollmentService;
 
-    public CertificateController(ICertificateService certificateService, IUnitOfWork unitOfWork)
+    public CertificateController(ICertificateService certificateService, IUnitOfWork unitOfWork, IEnrollmentService enrollmentService)
     {
         _certificateService = certificateService;
         _unitOfWork = unitOfWork;
+        _enrollmentService = enrollmentService;
     }
 
     private bool TryGetUserId(out int userId)
@@ -96,10 +98,11 @@ public class CertificateController : ControllerBase
         if (enrollment == null)
             return NotFound(new GenericResponseDTO<object>(false, "Enrollment not found"));
 
-        if (enrollment.CompletionPercentage < 100)
-            return BadRequest(new GenericResponseDTO<object>(false, "Course must be 100% complete to earn a certificate"));
+        var cert = await _enrollmentService.GenerateCertificateIfEligibleAsync(userId, enrollment.CourseId);
+        if (cert == null)
+            return BadRequest(new GenericResponseDTO<object>(false,
+                "Course must be fully complete — all lessons watched and all quizzes passed — to earn a certificate"));
 
-        var cert = await _certificateService.GenerateCertificateAsync(userId, enrollment.CourseId);
         var course = await _unitOfWork.Courses.GetByIdAsync(cert.CourseId);
 
         return Ok(new GenericResponseDTO<object>(true, new

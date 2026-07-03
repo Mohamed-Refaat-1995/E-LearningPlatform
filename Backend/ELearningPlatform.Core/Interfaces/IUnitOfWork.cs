@@ -22,6 +22,7 @@ public interface IUnitOfWork : IAsyncDisposable
     IRepository<OrderItem> OrderItems { get; }
     IRepository<Coupon> Coupons { get; }
     IRepository<UserSession> UserSessions { get; }
+    IRepository<Notification> Notifications { get; }
 
     Task SaveChangesAsync();
     Task BeginTransactionAsync();
