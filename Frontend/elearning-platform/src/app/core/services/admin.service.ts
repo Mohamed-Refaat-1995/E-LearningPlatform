@@ -5,6 +5,44 @@ import { ConfigService } from './config.service';
 import { User } from '@shared/models/user.model';
 import { Course } from '@shared/models/course.model';
 
+export interface AdminCourseGridItem {
+  id: number;
+  title: string;
+  thumbnailUrl?: string;
+  category: string;
+  level: string;
+  price: number;
+  isPublished: boolean;
+  instructorId: number;
+  instructorName: string;
+  enrolledCount: number;
+  averageRating: number;
+  reviewsCount: number;
+  totalPaid: number;
+  adminProfit: number;
+  instructorProfit: number;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  profitPercentage: number;
+}
+
+export interface AdminCourseGridQuery {
+  search?: string;
+  categoryId?: number;
+  level?: number;
+  isPublished?: boolean;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -49,8 +87,34 @@ export class AdminService {
     return this.http.get<Course[]>(`${this.API_URL}/courses`);
   }
 
+  /** Smart, filterable, paginated admin courses grid with profit split. */
+  getAdminCourses(query: AdminCourseGridQuery = {}): Observable<PagedResult<AdminCourseGridItem>> {
+    let params = new HttpParams();
+    if (query.search) params = params.set('search', query.search);
+    if (query.categoryId != null) params = params.set('categoryId', query.categoryId.toString());
+    if (query.level != null) params = params.set('level', query.level.toString());
+    if (query.isPublished != null) params = params.set('isPublished', String(query.isPublished));
+    if (query.sortBy) params = params.set('sortBy', query.sortBy);
+    if (query.sortDir) params = params.set('sortDir', query.sortDir);
+    params = params.set('page', String(query.page ?? 1));
+    params = params.set('pageSize', String(query.pageSize ?? 10));
+    return this.http.get<PagedResult<AdminCourseGridItem>>(`${this.API_URL}/admin/courses`, { params });
+  }
+
+  getProfitPercentage(): Observable<{ profitPercentage: number }> {
+    return this.http.get<{ profitPercentage: number }>(`${this.API_URL}/admin/profit-percentage`);
+  }
+
+  updateProfitPercentage(profitPercentage: number): Observable<{ profitPercentage: number }> {
+    return this.http.put<{ profitPercentage: number }>(`${this.API_URL}/admin/profit-percentage`, { profitPercentage });
+  }
+
   deleteCourse(id: number): Observable<any> {
     return this.http.delete(`${this.API_URL}/courses/${id}`);
+  }
+
+  getCategories(): Observable<{ id: number; name: string }[]> {
+    return this.http.get<{ id: number; name: string }[]>(`${this.API_URL}/courses/categories`);
   }
 
   getCoursePriceBreakdown(courseId: number): Observable<any> {

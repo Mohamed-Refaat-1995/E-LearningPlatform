@@ -19,6 +19,7 @@
         <input
           type="email"
           formControlName="email"
+          [attr.autocomplete]="preventCredentialSave ? 'off' : 'username'"
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
           placeholder="you@example.com"
         />
@@ -34,6 +35,7 @@
           <input
             [type]="showPassword ? 'text' : 'password'"
             formControlName="password"
+            [attr.autocomplete]="preventCredentialSave ? 'new-password' : 'current-password'"
             class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
             placeholder="••••••••"
           />

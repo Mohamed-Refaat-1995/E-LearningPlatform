@@ -7,6 +7,14 @@ public class Enrollment : BaseEntity
     public int CourseId { get; set; }
     public Course Course { get; set; } = null!;
     public decimal PricePaid { get; set; }
+
+    /// <summary>
+    /// Admin profit share percentage captured at enrollment time. Snapshotting it
+    /// here keeps historical profit correct when the admin later changes the rate:
+    /// AdminProfit = PricePaid * AdminPercentage / 100, InstructorProfit = the rest.
+    /// </summary>
+    public decimal AdminPercentage { get; set; }
+
     public DateTime EnrolledAt { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAt { get; set; }
     public decimal CompletionPercentage { get; set; }

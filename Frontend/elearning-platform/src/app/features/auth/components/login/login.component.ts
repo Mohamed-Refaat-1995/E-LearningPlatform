@@ -21,6 +21,15 @@ export class LoginComponent implements OnInit, AfterViewInit {
   rememberMe = false;
   showPassword = false;
 
+  /**
+   * When the user has opted out of credential saving (toggled in Settings →
+   * Current Sessions), the login inputs advertise autocomplete="off" /
+   * "new-password" so the browser does not offer to store the credentials.
+   */
+  get preventCredentialSave(): boolean {
+    return localStorage.getItem('preventCredentialSave') === 'true';
+  }
+
   constructor(
     private formBuilder: FormBuilder,
     private authService: AuthService,

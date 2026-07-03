@@ -1,44 +1,154 @@
-<div class="min-h-screen bg-gray-50">
-  <div class="max-w-7xl mx-auto py-8 px-4">
-    <a routerLink="/admin" class="text-indigo-600 hover:text-indigo-700 font-medium mb-4 inline-block">← Back</a>
-    <h1 class="text-3xl font-bold text-gray-900 mt-4">Course Management</h1>
-    <p class="text-gray-600 mt-2">Approve and moderate course content</p>
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Course Management</h1>
+      <p class="text-gray-500 text-sm mt-1">
+        All courses with enrollment, reviews and revenue split
+        <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium"
+              title="Current rate applied to new sales. Profit below uses each enrollment's snapshotted rate.">
+          Current admin share: {{ profitPercentage }}%
+        </span>
+      </p>
+    </div>
+    <span class="text-sm text-gray-500">{{ totalCount }} course{{ totalCount === 1 ? '' : 's' }}</span>
+  </div>
 
-    <div class="bg-white rounded-lg shadow p-6 mt-8">
-      <p *ngIf="loading" class="text-gray-500">Loading courses...</p>
-      <p *ngIf="error" class="text-red-600">{{ error }}</p>
+  <!-- Filter bar -->
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div class="lg:col-span-2">
+        <label class="block text-xs font-medium text-gray-500 mb-1">Search</label>
+        <input [(ngModel)]="search" (ngModelChange)="onSearchChange()" type="text"
+               placeholder="Course title or instructor…"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+      </div>
 
-      <div *ngIf="!loading && courses.length === 0" class="text-gray-500">No courses available.</div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
+        <select [(ngModel)]="categoryId" (ngModelChange)="onFilterChange()"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+          <option [ngValue]="null">All categories</option>
+          <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
 
-      <table *ngIf="!loading && courses.length > 0" class="w-full text-left">
-        <thead>
-          <tr class="border-b border-gray-200">
-            <th class="py-2">Title</th>
-            <th class="py-2">Category</th>
-            <th class="py-2">Level</th>
-            <th class="py-2">Price</th>
-            <th class="py-2">Status</th>
-            <th class="py-2">Actions</th>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Level</label>
+        <select [(ngModel)]="level" (ngModelChange)="onFilterChange()"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+          <option [ngValue]="null">All levels</option>
+          <option *ngFor="let l of levels" [ngValue]="l.value">{{ l.label }}</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+        <select [(ngModel)]="isPublished" (ngModelChange)="onFilterChange()"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+          <option [ngValue]="null">All statuses</option>
+          <option [ngValue]="true">Published</option>
+          <option [ngValue]="false">Pending</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between mt-3">
+      <button (click)="resetFilters()" class="text-sm text-gray-500 hover:text-gray-700">↺ Reset filters</button>
+      <div class="flex items-center gap-2 text-sm text-gray-500">
+        <span>Rows:</span>
+        <select [(ngModel)]="pageSize" (ngModelChange)="onFilterChange()"
+                class="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+          <option [ngValue]="10">10</option>
+          <option [ngValue]="25">25</option>
+          <option [ngValue]="50">50</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div *ngIf="loading" class="p-8 text-center text-gray-500">Loading courses…</div>
+    <div *ngIf="error && !loading" class="p-8 text-center text-red-600">{{ error }}</div>
+    <div *ngIf="!loading && !error && courses.length === 0" class="p-8 text-center text-gray-500">
+      No courses match your filters.
+    </div>
+
+    <div *ngIf="!loading && !error && courses.length > 0" class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-gray-50 text-gray-500">
+          <tr>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none" (click)="sortByColumn('title')">
+              Course <span class="text-gray-400">{{ sortIcon('title') }}</span>
+            </th>
+            <th class="px-4 py-3 font-medium">Instructor</th>
+            <th class="px-4 py-3 font-medium text-right cursor-pointer select-none" (click)="sortByColumn('students')">
+              Students <span class="text-gray-400">{{ sortIcon('students') }}</span>
+            </th>
+            <th class="px-4 py-3 font-medium text-right cursor-pointer select-none" (click)="sortByColumn('rating')">
+              Rating <span class="text-gray-400">{{ sortIcon('rating') }}</span>
+            </th>
+            <th class="px-4 py-3 font-medium text-right cursor-pointer select-none" (click)="sortByColumn('revenue')">
+              Total Paid <span class="text-gray-400">{{ sortIcon('revenue') }}</span>
+            </th>
+            <th class="px-4 py-3 font-medium text-right">Admin Profit</th>
+            <th class="px-4 py-3 font-medium text-right">Instructor Profit</th>
+            <th class="px-4 py-3 font-medium">Status</th>
+            <th class="px-4 py-3 font-medium text-right">Actions</th>
           </tr>
         </thead>
-        <tbody>
-          <tr *ngFor="let course of courses" class="border-b border-gray-100">
-            <td class="py-2">{{ course.title }}</td>
-            <td class="py-2">{{ course.category }}</td>
-            <td class="py-2">{{ course.level }}</td>
-            <td class="py-2">{{ course.price | currency }}</td>
-            <td class="py-2">
-              <span [class]="course.isPublished ? 'text-green-600' : 'text-yellow-600'">
+        <tbody class="divide-y divide-gray-100">
+          <tr *ngFor="let course of courses" class="hover:bg-gray-50">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <img *ngIf="course.thumbnailUrl" [src]="course.thumbnailUrl" alt=""
+                     class="w-10 h-10 rounded object-cover flex-shrink-0" />
+                <div *ngIf="!course.thumbnailUrl" class="w-10 h-10 rounded bg-indigo-100 flex items-center justify-center text-indigo-500 flex-shrink-0">📚</div>
+                <div>
+                  <div class="font-medium text-gray-800">{{ course.title }}</div>
+                  <div class="text-xs text-gray-400">{{ course.category }} · {{ course.level }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-gray-600">{{ course.instructorName }}</td>
+            <td class="px-4 py-3 text-right text-gray-700">{{ course.enrolledCount }}</td>
+            <td class="px-4 py-3 text-right">
+              <span *ngIf="course.reviewsCount > 0" class="text-amber-600 font-medium">
+                ★ {{ course.averageRating | number:'1.1-1' }}
+              </span>
+              <span *ngIf="course.reviewsCount > 0" class="text-xs text-gray-400"> ({{ course.reviewsCount }})</span>
+              <span *ngIf="course.reviewsCount === 0" class="text-gray-300">—</span>
+            </td>
+            <td class="px-4 py-3 text-right font-medium text-gray-800">{{ course.totalPaid | currency }}</td>
+            <td class="px-4 py-3 text-right text-green-600 font-medium">{{ course.adminProfit | currency }}</td>
+            <td class="px-4 py-3 text-right text-indigo-600 font-medium">{{ course.instructorProfit | currency }}</td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-1 rounded-full text-xs font-medium"
+                    [class]="course.isPublished ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'">
                 {{ course.isPublished ? 'Published' : 'Pending' }}
               </span>
             </td>
-            <td class="py-2">
+            <td class="px-4 py-3 text-right whitespace-nowrap">
               <a [routerLink]="['/courses', course.id]" class="text-indigo-600 hover:underline mr-3">View</a>
               <button (click)="deleteCourse(course)" class="text-red-600 hover:underline">Delete</button>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination footer -->
+    <div *ngIf="!loading && !error && courses.length > 0"
+         class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
+      <span>Showing {{ pageStart }}–{{ pageEnd }} of {{ totalCount }}</span>
+      <div class="flex items-center gap-1">
+        <button (click)="goToPage(page - 1)" [disabled]="page <= 1"
+                class="px-3 py-1 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50">Prev</button>
+        <span class="px-3 py-1">Page {{ page }} of {{ totalPages }}</span>
+        <button (click)="goToPage(page + 1)" [disabled]="page >= totalPages"
+                class="px-3 py-1 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50">Next</button>
+      </div>
     </div>
   </div>
 </div>

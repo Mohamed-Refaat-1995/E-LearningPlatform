@@ -4,6 +4,7 @@ using ELearningPlatform.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 
 namespace ELearningPlatform.API.Controllers;
 
@@ -77,7 +78,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
         var userAgent = Request.Headers["User-Agent"].ToString();
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var ipAddress = GetClientIpAddress();
 
         var (success, message, token, refreshToken, userId, role) =
             await _authService.LoginAsync(request.Email, request.Password, userAgent, ipAddress);
@@ -141,9 +142,9 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto request)
     {
         var userAgent = Request.Headers["User-Agent"].ToString();
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var ipAddress = GetClientIpAddress();
 
-        var (success, message, token, refreshToken, userId, role) = await _authService.GoogleLoginAsync(request.IdToken, 
+        var (success, message, token, refreshToken, userId, role) = await _authService.GoogleLoginAsync(request.IdToken,
                                                                                                         userAgent,
                                                                                                         ipAddress);
 
@@ -177,6 +178,29 @@ public class AuthController : ControllerBase
         }
 
         return Ok(new GenericResponseDTO<object>(true, message));
+    }
+    #endregion
+
+    #region Helpers
+    /// <summary>
+    /// Resolves the client's public IP address. Prefers the left-most entry of the
+    /// X-Forwarded-For header (set by reverse proxies / load balancers) and falls
+    /// back to the direct connection remote IP when no proxy header is present.
+    /// </summary>
+    private string? GetClientIpAddress()
+    {
+        var forwardedFor = Request.Headers["X-Forwarded-For"].ToString();
+        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            var first = forwardedFor.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                    .FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(first))
+            {
+                return first;
+            }
+        }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
     #endregion
 

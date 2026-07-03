@@ -146,6 +146,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.StudentId, e.CourseId }).IsUnique();
             entity.Property(e => e.PricePaid).HasPrecision(18, 2);
+            entity.Property(e => e.AdminPercentage).HasPrecision(5, 2);
             entity.Property(e => e.CompletionPercentage).HasPrecision(5, 2);
             entity.HasMany(e => e.LessonProgresses).WithOne(lp => lp.Enrollment).HasForeignKey(lp => lp.EnrollmentId).OnDelete(DeleteBehavior.Cascade);
         });

@@ -41,6 +41,9 @@ public class EnrollmentService : IEnrollmentService
             StudentId = studentId,
             CourseId = courseId,
             PricePaid = pricePaid,
+            // Snapshot the platform profit share at purchase time so later rate
+            // changes never rewrite the profit of past enrollments.
+            AdminPercentage = await GetPlatformProfitPercentageAsync(),
             EnrolledAt = DateTime.UtcNow,
             CompletionPercentage = 0,
             CreatedAt = DateTime.UtcNow,
@@ -121,6 +124,18 @@ public class EnrollmentService : IEnrollmentService
     {
         var enrollment = await GetEnrollmentAsync(studentId, courseId);
         return enrollment != null;
+    }
+
+    /// <summary>
+    /// The single platform profit share = the owner admin's (lowest id) current
+    /// ProfitPercentage. This is the same value the admin edits in Settings and is
+    /// snapshotted onto each new enrollment.
+    /// </summary>
+    private async Task<decimal> GetPlatformProfitPercentageAsync()
+    {
+        var admins = await _unitOfWork.Users.FindAsync(u => u.Role == UserRoleEnum.Admin && !u.IsDeleted);
+        var owner = admins.OfType<Admin>().OrderBy(a => a.Id).FirstOrDefault();
+        return owner?.ProfitPercentage ?? 0m;
     }
 
 
