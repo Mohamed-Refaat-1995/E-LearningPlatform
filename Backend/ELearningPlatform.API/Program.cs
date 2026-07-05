@@ -88,6 +88,8 @@ builder.WebHost.ConfigureKestrel(options =>
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
 var key = Encoding.UTF8.GetBytes(secretKey!);
+
+Stripe.StripeConfiguration.ApiKey = builder.Configuration["StripeSettings:SecretKey"];
 // Add JWT authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -161,6 +163,7 @@ builder.Services.AddScoped<INotificationPusher, SignalRNotificationPusher>();
 
 builder.Services.AddScoped<ICloudinaryVideoService, CloudinaryVideoService>();
 builder.Services.AddScoped<IDemoDataSeederService, DemoDataSeederService>();
+builder.Services.AddScoped<IStripePaymentGateway, ELearningPlatform.Infrastructure.Stripe.StripePaymentGateway>();
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 

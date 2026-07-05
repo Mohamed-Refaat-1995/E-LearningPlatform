@@ -8,6 +8,7 @@ public class Payment : BaseEntity
     public CurrencyEnum Currency { get; set; } = CurrencyEnum.EGP;
     public PaymentMethodEnum PaymentMethod { get; set; } = PaymentMethodEnum.Stripe;
     public string TransactionNo { get; set; } = string.Empty;
+    public string? StripePaymentIntentId { get; set; }
     public PaymentStatusEnum Status { get; set; } = PaymentStatusEnum.Purchased;
     public DateTime PaidAt { get; set; } = DateTime.UtcNow;
 

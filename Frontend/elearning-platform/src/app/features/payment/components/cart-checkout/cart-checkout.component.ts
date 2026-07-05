@@ -7,6 +7,7 @@ import { takeUntil } from 'rxjs/operators';
 import { CartService } from '@core/services/cart.service';
 import { OrderService } from '@core/services/order.service';
 import { PaymentService } from '@core/services/payment.service';
+import { StripeService } from '@core/services/stripe.service';
 import { CartItem } from '@shared/models/cart.model';
 
 @Component({
@@ -20,6 +21,7 @@ export class CartCheckoutComponent implements OnInit, OnDestroy {
   processing = false;
   success = false;
   error: string | null = null;
+  cardReady = false;
   step = '';
 
   form!: FormGroup;
@@ -30,6 +32,7 @@ export class CartCheckoutComponent implements OnInit, OnDestroy {
     private cartService: CartService,
     private orderService: OrderService,
     private paymentService: PaymentService,
+    private stripeService: StripeService,
     private router: Router,
     private fb: FormBuilder
   ) {}
@@ -42,11 +45,22 @@ export class CartCheckoutComponent implements OnInit, OnDestroy {
     }
 
     this.form = this.fb.group({
-      cardholderName: ['', [Validators.required, Validators.minLength(3)]],
-      cardNumber:     ['', [Validators.required, Validators.pattern(/^\d{16}$/)]],
-      expiry:         ['', [Validators.required, Validators.pattern(/^(0[1-9]|1[0-2])\/\d{2}$/)]],
-      cvv:            ['', [Validators.required, Validators.pattern(/^\d{3,4}$/)]]
+      cardholderName: ['', [Validators.required, Validators.minLength(3)]]
     });
+
+    if (this.total > 0) {
+      // Let Angular render the card-element container before Stripe mounts into it.
+      setTimeout(() => this.mountCard(), 0);
+    }
+  }
+
+  private async mountCard(): Promise<void> {
+    try {
+      await this.stripeService.mountCardElement('card-element');
+      this.cardReady = true;
+    } catch (e: any) {
+      this.error = e?.message || 'Could not load the payment form. Please refresh and try again.';
+    }
   }
 
   itemPrice(item: CartItem): number {
@@ -59,6 +73,8 @@ export class CartCheckoutComponent implements OnInit, OnDestroy {
 
   submit(): void {
     if (this.form.invalid || this.items.length === 0) return;
+    if (this.total > 0 && !this.cardReady) return;
+
     this.processing = true;
     this.error = null;
 
@@ -72,24 +88,25 @@ export class CartCheckoutComponent implements OnInit, OnDestroy {
           this.paymentService.createPayment({
             orderId: order.id,
             amount: order.totalAmount,
-            paymentMethod: 'CreditCard'
+            paymentMethod: 'Stripe'
           }).pipe(takeUntil(this.destroy$)).subscribe({
-            next: (payment) => {
-              this.step = 'process';
-              const txnNo = `TXN-${Date.now()}`;
-              this.paymentService.processPayment(payment.id, txnNo)
-                .pipe(takeUntil(this.destroy$))
-                .subscribe({
-                  next: () => {
+            next: ({ payment, clientSecret }) => {
+              if (!clientSecret) {
+                // Free cart — nothing to charge, go straight to confirming enrollment.
+                this.finishPayment(payment.id, '');
+                return;
+              }
+
+              this.step = 'confirm';
+              const cardholderName = this.form.value.cardholderName;
+              this.stripeService.confirmCardPayment(clientSecret, cardholderName)
+                .then(({ paymentIntentId, error }) => {
+                  if (error || !paymentIntentId) {
+                    this.error = error || 'Payment could not be confirmed.';
                     this.processing = false;
-                    this.success = true;
-                    this.cartService.clear();
-                    setTimeout(() => this.router.navigate(['/dashboard']), 2500);
-                  },
-                  error: (e) => {
-                    this.error = e.error?.message || 'Payment processing failed. Please try again.';
-                    this.processing = false;
+                    return;
                   }
+                  this.finishPayment(payment.id, paymentIntentId);
                 });
             },
             error: (e) => {
@@ -105,26 +122,31 @@ export class CartCheckoutComponent implements OnInit, OnDestroy {
       });
   }
 
-  formatCardNumber(e: Event): void {
-    const input = e.target as HTMLInputElement;
-    const digits = input.value.replace(/\D/g, '').slice(0, 16);
-    this.form.get('cardNumber')!.setValue(digits, { emitEvent: false });
-    input.value = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
-  }
-
-  formatExpiry(e: Event): void {
-    const input = e.target as HTMLInputElement;
-    const digits = input.value.replace(/\D/g, '').slice(0, 4);
-    const formatted = digits.length > 2 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits;
-    this.form.get('expiry')!.setValue(formatted, { emitEvent: false });
-    input.value = formatted;
+  private finishPayment(paymentId: number, stripePaymentIntentId: string): void {
+    this.step = 'process';
+    this.paymentService.processPayment(paymentId, stripePaymentIntentId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.processing = false;
+          this.success = true;
+          this.stripeService.unmountCardElement();
+          this.cartService.clear();
+          setTimeout(() => this.router.navigate(['/dashboard']), 2500);
+        },
+        error: (e) => {
+          this.error = e.error?.message || 'Payment processing failed. Please try again.';
+          this.processing = false;
+        }
+      });
   }
 
   get stepLabel(): string {
     const labels: Record<string, string> = {
       order:   'Creating order…',
-      payment: 'Recording payment…',
-      process: 'Confirming payment…'
+      payment: 'Preparing payment…',
+      confirm: 'Confirming card with Stripe…',
+      process: 'Finalizing enrollment…'
     };
     return labels[this.step] || 'Processing…';
   }
@@ -132,6 +154,7 @@ export class CartCheckoutComponent implements OnInit, OnDestroy {
   get f(): { [k: string]: AbstractControl } { return this.form.controls; }
 
   ngOnDestroy(): void {
+    this.stripeService.unmountCardElement();
     this.destroy$.next();
     this.destroy$.complete();
   }

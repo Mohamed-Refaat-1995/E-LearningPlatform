@@ -76,8 +76,8 @@ public class PaymentController : ControllerBase
             return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
         }
 
-        var payment = await _paymentService.CreatePaymentAsync(request.OrderId, request.Amount, request.PaymentMethod);
-        return Ok(new GenericResponseDTO<object>(true, payment));
+        var result = await _paymentService.CreatePaymentAsync(request.OrderId, request.Amount, request.PaymentMethod);
+        return Ok(new GenericResponseDTO<object>(true, new { payment = result.Payment, clientSecret = result.ClientSecret }));
     }
 
     [HttpPost("{id}/process")]
@@ -105,10 +105,10 @@ public class PaymentController : ControllerBase
             return StatusCode(403, new GenericResponseDTO<object>(false, "Forbidden"));
         }
 
-        var ok = await _paymentService.ProcessPaymentAsync(id, request.GetTransactionNo());
+        var (ok, error) = await _paymentService.ProcessPaymentAsync(id, request.GetTransactionNo());
         if (!ok)
         {
-            return BadRequest(new GenericResponseDTO<object>(false, "Payment processing failed"));
+            return BadRequest(new GenericResponseDTO<object>(false, error ?? "Payment processing failed"));
         }
 
         foreach (var item in order.Items)

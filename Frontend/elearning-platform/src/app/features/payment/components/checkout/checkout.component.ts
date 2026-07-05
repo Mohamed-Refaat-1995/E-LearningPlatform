@@ -8,6 +8,7 @@ import { CourseService } from '@core/services/course.service';
 import { PaymentService } from '@core/services/payment.service';
 import { OrderService } from '@core/services/order.service';
 import { AuthService } from '@core/services/auth.service';
+import { StripeService } from '@core/services/stripe.service';
 import { Course } from '@shared/models/course.model';
 
 @Component({
@@ -22,7 +23,8 @@ export class CheckoutComponent implements OnInit, OnDestroy {
   processing = false;
   success = false;
   error: string | null = null;
-  // 'order' | 'payment' | 'process'
+  cardReady = false;
+  // 'order' | 'payment' | 'confirm' | 'process'
   step = '';
 
   form!: FormGroup;
@@ -37,6 +39,7 @@ export class CheckoutComponent implements OnInit, OnDestroy {
     private paymentService: PaymentService,
     private orderService: OrderService,
     private authService: AuthService,
+    private stripeService: StripeService,
     private fb: FormBuilder
   ) {}
 
@@ -47,10 +50,7 @@ export class CheckoutComponent implements OnInit, OnDestroy {
     }
 
     this.form = this.fb.group({
-      cardholderName: ['', [Validators.required, Validators.minLength(3)]],
-      cardNumber:     ['', [Validators.required, Validators.pattern(/^\d{16}$/)]],
-      expiry:         ['', [Validators.required, Validators.pattern(/^(0[1-9]|1[0-2])\/\d{2}$/)]],
-      cvv:            ['', [Validators.required, Validators.pattern(/^\d{3,4}$/)]]
+      cardholderName: ['', [Validators.required, Validators.minLength(3)]]
     });
 
     this.route.params.pipe(takeUntil(this.destroy$)).subscribe(params => {
@@ -63,13 +63,32 @@ export class CheckoutComponent implements OnInit, OnDestroy {
     this.courseService.getCourseById(this.courseId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next:  (c) => { this.course = c; this.loadingCourse = false; },
-        error: ()  => { this.error = 'Failed to load course details.'; this.loadingCourse = false; }
+        next: (c) => {
+          this.course = c;
+          this.loadingCourse = false;
+          if (c.price > 0) {
+            // Let Angular render the card-element container before Stripe mounts into it.
+            setTimeout(() => this.mountCard(), 0);
+          }
+        },
+        error: () => { this.error = 'Failed to load course details.'; this.loadingCourse = false; }
       });
+  }
+
+  private async mountCard(): Promise<void> {
+    try {
+      await this.stripeService.mountCardElement('card-element');
+      this.cardReady = true;
+    } catch (e: any) {
+      this.error = e?.message || 'Could not load the payment form. Please refresh and try again.';
+    }
   }
 
   submit(): void {
     if (this.form.invalid || !this.course) return;
+    const isPaid = this.course.price > 0;
+    if (isPaid && !this.cardReady) return;
+
     this.processing = true;
     this.error = null;
 
@@ -79,31 +98,31 @@ export class CheckoutComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (order) => {
-          // ── Step 2: Create payment record ─────────────────
+          // ── Step 2: Create payment record (+ Stripe PaymentIntent) ─
           this.step = 'payment';
           this.paymentService.createPayment({
             orderId: order.id,
-            amount:  order.totalAmount,
-            paymentMethod: 'CreditCard'
+            amount: order.totalAmount,
+            paymentMethod: 'Stripe'
           }).pipe(takeUntil(this.destroy$)).subscribe({
-            next: (payment) => {
-              // ── Step 3: Process payment (auto-enrolls) ────
-              this.step = 'process';
-              const txnNo = `TXN-${Date.now()}`;
-              this.paymentService.processPayment(payment.id, txnNo)
-                .pipe(takeUntil(this.destroy$))
-                .subscribe({
-                  next: () => {
+            next: ({ payment, clientSecret }) => {
+              if (!clientSecret) {
+                // Free course — nothing to charge, go straight to confirming enrollment.
+                this.finishPayment(payment.id, '');
+                return;
+              }
+
+              // ── Step 3: Confirm the card payment with Stripe ────
+              this.step = 'confirm';
+              const cardholderName = this.form.value.cardholderName;
+              this.stripeService.confirmCardPayment(clientSecret, cardholderName)
+                .then(({ paymentIntentId, error }) => {
+                  if (error || !paymentIntentId) {
+                    this.error = error || 'Payment could not be confirmed.';
                     this.processing = false;
-                    this.success = true;
-                    setTimeout(() => {
-                      this.router.navigate(['/dashboard/my-courses', this.courseId]);
-                    }, 2500);
-                  },
-                  error: (e) => {
-                    this.error = e.error?.message || 'Payment processing failed. Please try again.';
-                    this.processing = false;
+                    return;
                   }
+                  this.finishPayment(payment.id, paymentIntentId);
                 });
             },
             error: (e) => {
@@ -119,28 +138,33 @@ export class CheckoutComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ── Card input formatting ────────────────────────────────
-
-  formatCardNumber(e: Event): void {
-    const input = e.target as HTMLInputElement;
-    const digits = input.value.replace(/\D/g, '').slice(0, 16);
-    this.form.get('cardNumber')!.setValue(digits, { emitEvent: false });
-    input.value = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
-  }
-
-  formatExpiry(e: Event): void {
-    const input = e.target as HTMLInputElement;
-    const digits = input.value.replace(/\D/g, '').slice(0, 4);
-    const formatted = digits.length > 2 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits;
-    this.form.get('expiry')!.setValue(formatted, { emitEvent: false });
-    input.value = formatted;
+  // ── Step 4: Tell the backend the payment succeeded (this triggers enrollment) ─
+  private finishPayment(paymentId: number, stripePaymentIntentId: string): void {
+    this.step = 'process';
+    this.paymentService.processPayment(paymentId, stripePaymentIntentId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.processing = false;
+          this.success = true;
+          this.stripeService.unmountCardElement();
+          setTimeout(() => {
+            this.router.navigate(['/dashboard/my-courses', this.courseId]);
+          }, 2500);
+        },
+        error: (e) => {
+          this.error = e.error?.message || 'Payment processing failed. Please try again.';
+          this.processing = false;
+        }
+      });
   }
 
   get stepLabel(): string {
     const labels: Record<string, string> = {
       order:   'Creating order…',
-      payment: 'Recording payment…',
-      process: 'Confirming payment…'
+      payment: 'Preparing payment…',
+      confirm: 'Confirming card with Stripe…',
+      process: 'Finalizing enrollment…'
     };
     return labels[this.step] || 'Processing…';
   }
@@ -148,6 +172,7 @@ export class CheckoutComponent implements OnInit, OnDestroy {
   get f(): { [k: string]: AbstractControl } { return this.form.controls; }
 
   ngOnDestroy(): void {
+    this.stripeService.unmountCardElement();
     this.destroy$.next();
     this.destroy$.complete();
   }

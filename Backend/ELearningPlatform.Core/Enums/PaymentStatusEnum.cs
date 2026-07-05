@@ -6,6 +6,7 @@ namespace ELearningPlatform.Core
 {
     public enum PaymentStatusEnum
     {
+        Pending = 0,
         Purchased = 1,
         Refunded = 2,
     }

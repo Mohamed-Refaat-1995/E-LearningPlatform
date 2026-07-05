@@ -244,6 +244,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TransactionNo).HasMaxLength(128);
+            entity.Property(e => e.StripePaymentIntentId).HasMaxLength(128);
             entity.Property(e => e.PaymentMethod).HasConversion<string>().HasMaxLength(50);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(50);
             entity.Property(e => e.Currency).HasConversion<string>().HasMaxLength(8);
@@ -339,7 +340,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.Property(e => e.DeviceName).HasMaxLength(200);
             entity.Property(e => e.Browser).HasMaxLength(200);
             entity.Property(e => e.IpAddress).HasMaxLength(64);
+            entity.Property(e => e.RefreshToken).HasMaxLength(200);
             entity.HasIndex(e => e.SessionToken).IsUnique();
+            entity.HasIndex(e => e.RefreshToken).IsUnique().HasFilter("[RefreshToken] IS NOT NULL");
             entity.HasOne(e => e.User).WithMany(u => u.UserSessions).HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }

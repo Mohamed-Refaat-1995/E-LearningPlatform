@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Payment, Invoice, PaymentRequest, ProcessPaymentRequest } from '@shared/models/payment.model';
+import { Payment, Invoice, PaymentRequest, ProcessPaymentRequest, PaymentWithClientSecret } from '@shared/models/payment.model';
 import { ConfigService } from './config.service';
 
 @Injectable({
@@ -13,12 +13,12 @@ export class PaymentService {
 
   constructor(private http: HttpClient, private config: ConfigService) {}
 
-  createPayment(request: PaymentRequest): Observable<Payment> {
-    return this.http.post<Payment>(this.API_URL, request);
+  createPayment(request: PaymentRequest): Observable<PaymentWithClientSecret> {
+    return this.http.post<PaymentWithClientSecret>(this.API_URL, request);
   }
 
-  processPayment(paymentId: number, transactionNo: string): Observable<any> {
-    const body: ProcessPaymentRequest = { transactionNo };
+  processPayment(paymentId: number, stripePaymentIntentId: string): Observable<any> {
+    const body: ProcessPaymentRequest = { stripePaymentIntentId };
     return this.http.post(`${this.API_URL}/${paymentId}/process`, body);
   }
 

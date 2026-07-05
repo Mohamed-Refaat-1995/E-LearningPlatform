@@ -6,33 +6,67 @@ namespace ELearningPlatform.Application.Services;
 public class PaymentService : IPaymentService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IStripePaymentGateway _stripeGateway;
 
-    public PaymentService(IUnitOfWork unitOfWork)
+    public PaymentService(IUnitOfWork unitOfWork, IStripePaymentGateway stripeGateway)
     {
         _unitOfWork = unitOfWork;
+        _stripeGateway = stripeGateway;
     }
 
-    public async Task<Payment> CreatePaymentAsync(int orderId, decimal amount, PaymentMethodEnum paymentMethod = PaymentMethodEnum.Stripe)
+    public async Task<PaymentWithClientSecret> CreatePaymentAsync(int orderId, decimal amount, PaymentMethodEnum paymentMethod = PaymentMethodEnum.Stripe)
     {
         var payment = new Payment
         {
             OrderId = orderId,
             Amount = amount,
             PaymentMethod = paymentMethod,
-            Status = PaymentStatusEnum.Purchased
+            Status = PaymentStatusEnum.Pending
         };
+
+        string? clientSecret = null;
+
+        if (paymentMethod == PaymentMethodEnum.Stripe && amount > 0)
+        {
+            // Course prices are displayed/priced in USD throughout the UI regardless of the
+            // Currency enum's internal bookkeeping default, so Stripe is always charged in USD.
+            var intent = await _stripeGateway.CreatePaymentIntentAsync(amount, "usd", $"Order #{orderId}");
+            payment.StripePaymentIntentId = intent.PaymentIntentId;
+            clientSecret = intent.ClientSecret;
+        }
 
         await _unitOfWork.Payments.AddAsync(payment);
         await _unitOfWork.SaveChangesAsync();
-        return payment;
+        return new PaymentWithClientSecret(payment, clientSecret);
     }
 
-    public async Task<bool> ProcessPaymentAsync(int paymentId, string transactionNo)
+    public async Task<(bool Success, string? Error)> ProcessPaymentAsync(int paymentId, string stripePaymentIntentId)
     {
         var payment = await _unitOfWork.Payments.GetByIdAsync(paymentId);
-        if (payment == null) return false;
+        if (payment == null) return (false, "Payment not found");
 
-        payment.TransactionNo = transactionNo;
+        if (payment.Status == PaymentStatusEnum.Purchased)
+        {
+            return (true, null);
+        }
+
+        // Free-course payments never got a PaymentIntent -- nothing to verify with Stripe.
+        if (payment.Amount > 0)
+        {
+            if (string.IsNullOrWhiteSpace(stripePaymentIntentId) ||
+                !string.Equals(payment.StripePaymentIntentId, stripePaymentIntentId, StringComparison.Ordinal))
+            {
+                return (false, "Payment intent does not match this payment");
+            }
+
+            var intent = await _stripeGateway.RetrievePaymentIntentAsync(stripePaymentIntentId);
+            if (!intent.Succeeded)
+            {
+                return (false, $"Stripe payment has not succeeded (status: {intent.Status})");
+            }
+        }
+
+        payment.TransactionNo = stripePaymentIntentId;
         payment.Status = PaymentStatusEnum.Purchased;
         payment.PaidAt = DateTime.UtcNow;
         payment.UpdatedAt = DateTime.UtcNow;
@@ -48,7 +82,7 @@ public class PaymentService : IPaymentService
         }
 
         await _unitOfWork.SaveChangesAsync();
-        return true;
+        return (true, null);
     }
 
     public async Task<Invoice> GenerateInvoiceAsync(int paymentId)
@@ -94,6 +128,12 @@ public class PaymentService : IPaymentService
     {
         var payment = await _unitOfWork.Payments.GetByIdAsync(paymentId);
         if (payment == null) return false;
+
+        if (!string.IsNullOrWhiteSpace(payment.StripePaymentIntentId))
+        {
+            var refunded = await _stripeGateway.RefundAsync(payment.StripePaymentIntentId);
+            if (!refunded) return false;
+        }
 
         payment.Status = PaymentStatusEnum.Refunded;
         payment.UpdatedAt = DateTime.UtcNow;

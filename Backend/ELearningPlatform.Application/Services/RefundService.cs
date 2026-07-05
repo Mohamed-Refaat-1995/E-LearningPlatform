@@ -96,6 +96,8 @@ public class RefundService : IRefundService
         //  course.TotalStudents = Math.Max(0, course.TotalStudents - 1);
         _unitOfWork.Courses.Update(course);
 
+        await _unitOfWork.SaveChangesAsync();
+
         return (true, "Refund processed successfully");
     }
 

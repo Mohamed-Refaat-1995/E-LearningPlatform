@@ -102,9 +102,8 @@ public class AuthService : IAuthService
         }
 
         var role = user.Role.ToString();
-        var sessionToken = await CreateSessionAsync(user.Id, userAgent, ipAddress);
+        var (sessionToken, refreshToken) = await CreateSessionAsync(user.Id, userAgent, ipAddress);
         var token = GenerateJwtToken(user.Id, user.Email, role, sessionToken);
-        var refreshToken = GenerateRefreshToken();
 
         user.LastLoginAt = DateTime.UtcNow;
         _unitOfWork.Users.Update(user);
@@ -115,20 +114,34 @@ public class AuthService : IAuthService
 
     public async Task<(bool Success, string? Token, string? RefreshToken)> RefreshTokenAsync(string refreshToken)
     {
-        var (success, email, role) = ValidateTokenAsync(refreshToken);
-        if (!success || email == null || role == null)
+        // Refresh tokens are opaque random strings persisted on the session that issued
+        // them (not JWTs) -- look the session up directly rather than trying to parse it.
+        var session = await _unitOfWork.UserSessions.FirstOrDefaultAsync(s =>
+            s.RefreshToken == refreshToken && s.IsActive);
+
+        if (session == null || !session.RefreshTokenExpiresAt.HasValue ||
+            session.RefreshTokenExpiresAt.Value < DateTime.UtcNow)
         {
             return (false, null, null);
         }
 
-        var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user == null)
+        var user = await _unitOfWork.Users.GetByIdAsync(session.UserId);
+        if (user == null || !user.IsActive)
         {
             return (false, null, null);
         }
 
-        var newToken = GenerateJwtToken(user.Id, user.Email, user.Role.ToString());
+        var role = user.Role.ToString();
+        var newToken = GenerateJwtToken(user.Id, user.Email, role, session.SessionToken);
+
+        // Rotate the refresh token so a stolen/replayed one stops working once the
+        // legitimate client refreshes.
         var newRefreshToken = GenerateRefreshToken();
+        session.RefreshToken = newRefreshToken;
+        session.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        session.LastActivityAt = DateTime.UtcNow;
+        _unitOfWork.UserSessions.Update(session);
+        await _unitOfWork.SaveChangesAsync();
 
         return (true, newToken, newRefreshToken);
     }
@@ -291,9 +304,8 @@ public class AuthService : IAuthService
         }
 
         var userRole = user.Role.ToString();
-        var sessionToken = await CreateSessionAsync(user.Id, userAgent, ipAddress);
+        var (sessionToken, refreshToken) = await CreateSessionAsync(user.Id, userAgent, ipAddress);
         var jwtToken = GenerateJwtToken(user.Id, user.Email, userRole, sessionToken);
-        var refreshToken = GenerateRefreshToken();
 
         user.LastLoginAt = DateTime.UtcNow;
         _unitOfWork.Users.Update(user);
@@ -374,9 +386,10 @@ public class AuthService : IAuthService
         }
     }
 
-    private async Task<string> CreateSessionAsync(int userId, string? userAgent, string? ipAddress)
+    private async Task<(string SessionToken, string RefreshToken)> CreateSessionAsync(int userId, string? userAgent, string? ipAddress)
     {
         var sessionToken = Guid.NewGuid().ToString("N");
+        var refreshToken = GenerateRefreshToken();
         var (deviceName, browser) = ParseUserAgent(userAgent);
 
         var session = new UserSession
@@ -387,13 +400,15 @@ public class AuthService : IAuthService
             Browser = browser,
             IpAddress = ipAddress,
             LastActivityAt = DateTime.UtcNow,
-            IsActive = true
+            IsActive = true,
+            RefreshToken = refreshToken,
+            RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30)
         };
 
         await _unitOfWork.UserSessions.AddAsync(session);
         await _unitOfWork.SaveChangesAsync();
 
-        return sessionToken;
+        return (sessionToken, refreshToken);
     }
 
     private static (string DeviceName, string Browser) ParseUserAgent(string? userAgent)
@@ -469,32 +484,4 @@ public class AuthService : IAuthService
         }
     }
 
-    private (bool Success, string? Email, string? Role) ValidateTokenAsync(string token)
-    {
-        try
-        {
-            var jwtSettings = _configuration.GetSection("JwtSettings");
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!));
-
-            var principal = _tokenHandler.ValidateToken(token, new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = key,
-                ValidateIssuer = true,
-                ValidIssuer = jwtSettings["Issuer"],
-                ValidateAudience = true,
-                ValidAudience = jwtSettings["Audience"],
-                ValidateLifetime = false
-            }, out _);
-
-            var emailClaim = principal.FindFirst(ClaimTypes.Email);
-            var roleClaim = principal.FindFirst(ClaimTypes.Role);
-
-            return (true, emailClaim?.Value, roleClaim?.Value);
-        }
-        catch
-        {
-            return (false, null, null);
-        }
-    }
 }

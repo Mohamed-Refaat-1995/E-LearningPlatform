@@ -10,4 +10,6 @@ public class UserSession : BaseEntity
     public string? IpAddress { get; set; }
     public DateTime LastActivityAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiresAt { get; set; }
 }

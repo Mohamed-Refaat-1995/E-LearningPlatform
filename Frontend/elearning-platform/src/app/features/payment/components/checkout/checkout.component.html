@@ -74,61 +74,27 @@
                  class="text-red-500 text-xs mt-1">Please enter your full name.</p>
             </div>
 
-            <!-- Card number -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Card Number</label>
+            <!-- Card details (Stripe Elements) -->
+            <div *ngIf="course && course.price > 0">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                Card Details
+                <span class="text-gray-400 font-normal ml-1">— test card 4242 4242 4242 4242, any future date/CVC</span>
+              </label>
               <div class="relative">
-                <input type="text" inputmode="numeric"
-                       placeholder="1234 5678 9012 3456"
-                       maxlength="19"
-                       (input)="formatCardNumber($event)"
-                       class="w-full px-4 py-3 border rounded-xl text-sm outline-none transition pr-12"
-                       [class.border-red-400]="f['cardNumber'].invalid && f['cardNumber'].touched"
-                       [class.border-gray-300]="!(f['cardNumber'].invalid && f['cardNumber'].touched)"/>
+                <div id="card-element"
+                     class="w-full px-4 py-3.5 border border-gray-300 rounded-xl outline-none transition"></div>
                 <!-- Card brand icons placeholder -->
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1 pointer-events-none">
                   <span class="text-xs bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded">VISA</span>
                   <span class="text-xs bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded">MC</span>
                 </div>
               </div>
-              <p *ngIf="f['cardNumber'].invalid && f['cardNumber'].touched"
-                 class="text-red-500 text-xs mt-1">Enter a valid 16-digit card number.</p>
-            </div>
-
-            <!-- Expiry + CVV -->
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Expiry Date</label>
-                <input type="text" inputmode="numeric"
-                       placeholder="MM/YY"
-                       maxlength="5"
-                       (input)="formatExpiry($event)"
-                       class="w-full px-4 py-3 border rounded-xl text-sm outline-none transition"
-                       [class.border-red-400]="f['expiry'].invalid && f['expiry'].touched"
-                       [class.border-gray-300]="!(f['expiry'].invalid && f['expiry'].touched)"/>
-                <p *ngIf="f['expiry'].invalid && f['expiry'].touched"
-                   class="text-red-500 text-xs mt-1">Use MM/YY format.</p>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                  CVV
-                  <span class="text-gray-400 font-normal ml-1">(3–4 digits)</span>
-                </label>
-                <input formControlName="cvv" type="password" inputmode="numeric"
-                       placeholder="•••"
-                       maxlength="4"
-                       class="w-full px-4 py-3 border rounded-xl text-sm outline-none transition"
-                       [class.border-red-400]="f['cvv'].invalid && f['cvv'].touched"
-                       [class.border-gray-300]="!(f['cvv'].invalid && f['cvv'].touched)"/>
-                <p *ngIf="f['cvv'].invalid && f['cvv'].touched"
-                   class="text-red-500 text-xs mt-1">Enter a valid CVV.</p>
-              </div>
+              <p *ngIf="!cardReady" class="text-gray-400 text-xs mt-1">Loading secure card form…</p>
             </div>
 
             <!-- Submit -->
             <button type="submit"
-                    [disabled]="form.invalid || processing"
+                    [disabled]="form.invalid || processing || (course && course.price > 0 && !cardReady)"
                     class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition text-base mt-2">
               <span *ngIf="!processing">
                 Complete Purchase — {{ course?.price === 0 ? 'Free' : ('$' + (course?.price | number:'1.2-2')) }}

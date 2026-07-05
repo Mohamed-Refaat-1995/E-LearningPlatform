@@ -52,9 +52,15 @@ export interface PaymentRequest {
   paymentMethod: string;
 }
 
+// Response to creating a payment: the Stripe client secret is only present when
+// the order total is greater than zero (free courses skip Stripe entirely).
+export interface PaymentWithClientSecret {
+  payment: Payment;
+  clientSecret: string | null;
+}
+
 // Step 3 — process / confirm payment (this triggers enrollment on backend)
 export interface ProcessPaymentRequest {
-  transactionNo?: string;
   stripePaymentIntentId?: string;
 }
 

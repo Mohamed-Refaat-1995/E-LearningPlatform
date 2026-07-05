@@ -35,6 +35,8 @@ public class SessionService : ISessionService
         if (session == null) return false;
 
         session.IsActive = false;
+        session.RefreshToken = null;
+        session.RefreshTokenExpiresAt = null;
         session.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.UserSessions.Update(session);
         await _unitOfWork.SaveChangesAsync();
@@ -51,6 +53,8 @@ public class SessionService : ISessionService
         if (session == null) return false;
 
         session.IsActive = false;
+        session.RefreshToken = null;
+        session.RefreshTokenExpiresAt = null;
         session.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.UserSessions.Update(session);
         await _unitOfWork.SaveChangesAsync();
@@ -75,6 +79,8 @@ public class SessionService : ISessionService
         foreach (var session in list)
         {
             session.IsActive = false;
+            session.RefreshToken = null;
+            session.RefreshTokenExpiresAt = null;
             session.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.UserSessions.Update(session);
         }
